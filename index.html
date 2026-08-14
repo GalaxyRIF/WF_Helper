@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>2×2 矩阵 · 特征值与特征向量可视化</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧮</text></svg>">
+<style>
+:root{
+  --bg:#0b0d13; --panel:#151824; --panel2:#1b1f2e; --border:#262c3d;
+  --text:#e8ebf4; --muted:#98a1b5; --red:#ff5d5d; --blue:#4da3ff; --amber:#ffc24d; --green:#5dd39e;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;}
+header{max-width:1300px;margin:0 auto;padding:26px 20px 6px;}
+h1{margin:0 0 6px;font-size:23px;letter-spacing:.02em;}
+.sub{color:var(--muted);font-size:13.5px;line-height:1.7;}
+.sub code{background:var(--panel2);padding:1px 6px;border-radius:4px;color:#c8d0e4;}
+.layout{max-width:1300px;margin:0 auto;padding:10px 20px 40px;display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;justify-content:center;}
+.panel{flex:0 0 320px;display:flex;flex-direction:column;gap:14px;}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:15px;}
+.card h2{margin:0 0 12px;font-size:12px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;font-weight:600;}
+.viz{display:flex;flex-direction:column;gap:12px;flex:1 1 760px;max-width:826px;}
+.plane-row{display:flex;gap:14px;align-items:flex-start;justify-content:center;}
+.plane-row #plane{flex:0 0 auto;}
+canvas{display:block;background:#0d1018;border:1px solid var(--border);border-radius:14px;touch-action:none;user-select:none;-webkit-user-select:none;}
+#plane{width:min(100%,560px);aspect-ratio:1/1;height:auto;margin:0 auto;cursor:crosshair;}
+#eigline{width:min(100%,560px);aspect-ratio:560/120;height:auto;margin:0 auto;}
+#cplane{width:min(100%,560px);aspect-ratio:560/300;height:auto;margin:0 auto;display:none;}
+.cap{font-size:12px;color:var(--muted);text-align:center;margin:-4px 0 0;}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:center;font-size:12px;color:var(--muted);margin-top:-6px;}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px;}
+.legend b{color:#aeb6c9;font-weight:600;}
+
+/* 矩阵 */
+.matrix-wrap{display:flex;align-items:center;gap:10px;}
+.mname{font-size:18px;color:var(--muted);font-style:italic;}
+.matrix-grid{display:grid;grid-template-columns:repeat(2,76px);gap:8px;padding:10px 14px;
+  border-left:3px solid #8b93a7;border-right:3px solid #8b93a7;border-radius:2px;background:#0f1117;}
+.matrix-grid input{width:100%;background:#0f1117;color:var(--text);border:1px solid #2a3040;border-radius:6px;
+  padding:8px 4px;font-size:15px;text-align:center;font-variant-numeric:tabular-nums;outline:none;}
+.matrix-grid input:focus{border-color:#4da3ff;}
+.meta{display:flex;gap:18px;margin-top:12px;font-size:13px;color:var(--muted);}
+.meta b{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums;}
+
+/* 读数（行高固定，防止长文本换行导致布局变动） */
+.kv{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed #232a3a;font-size:14px;height:34px;overflow:hidden;}
+.kv:last-of-type{border-bottom:none;}
+.kv .k{color:var(--muted);white-space:nowrap;}
+.kv .v{font-variant-numeric:tabular-nums;text-align:right;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;}
+.dr{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px;}
+.dr.red{background:var(--red);} .dr.blue{background:var(--blue);}
+.status{font-size:13px;color:var(--green);margin-top:10px;line-height:1.6;height:42px;overflow:hidden;}
+.status.warn{color:var(--amber);}
+
+/* 控制 */
+.btnrow{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
+.btn{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:8px;
+  padding:8px 14px;font-size:14px;cursor:pointer;transition:border-color .15s,background .15s;}
+.btn:hover{border-color:#3d4660;background:#20263a;}
+.btn.primary{background:#2d5bff;border-color:#2d5bff;color:#fff;}
+.btn.primary:hover{background:#3a66ff;}
+.btn.active{background:#2d5bff;border-color:#2d5bff;color:#fff;}
+.btn.active:hover{background:#3a66ff;}
+.toggles{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:13px;color:#c4cadb;}
+.toggles label{display:flex;align-items:center;gap:6px;cursor:pointer;}
+.toggles input{accent-color:#4da3ff;}
+.inrow{display:flex;align-items:center;gap:6px;margin-top:12px;padding-top:10px;border-top:1px dashed #232a3a;font-size:13px;color:var(--muted);flex-wrap:wrap;}
+.inrow .k{white-space:nowrap;}
+.inp{width:78px;background:#0f1117;color:var(--text);border:1px solid #2a3040;border-radius:6px;padding:5px 6px;font-size:13px;text-align:right;font-variant-numeric:tabular-nums;outline:none;}
+.inp:focus{border-color:#4da3ff;}
+.inp:disabled{opacity:.45;}
+.zoomrow{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:13px;color:var(--muted);}
+.zoomrow input[type=range]{flex:1;accent-color:#4da3ff;min-width:80px;}
+.zinp{width:64px;background:#0f1117;color:var(--text);border:1px solid #2a3040;border-radius:6px;padding:5px 6px;font-size:13px;text-align:right;outline:none;}
+.zinp:focus{border-color:#4da3ff;}
+details.help-viz{flex:0 0 240px;max-height:564px;overflow-y:auto;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:8px 13px;font-size:12.5px;}
+details.help-viz summary{cursor:pointer;color:var(--muted);font-weight:600;user-select:none;-webkit-user-select:none;}
+details.help-viz[open]{padding-bottom:10px;}
+details.help-viz ul{margin:6px 0 0;padding-left:14px;color:#aeb6c9;line-height:1.7;}
+details.help-viz ul li{margin:2px 0;}
+@media (max-width:1160px){.plane-row{flex-wrap:wrap;}details.help-viz{flex:1 1 100%;max-height:none;}}
+@media (max-width:860px){.panel{flex-basis:100%;max-width:560px;}}
+</style>
+</head>
+<body>
+<header>
+  <h1>2×2 矩阵 · 特征值与特征向量可视化</h1>
+  <div class="sub">
+    <code>A = P·diag(λ₁, λ₂)·P⁻¹</code>
+    —— 修改矩阵元素，特征值/特征向量实时重算；拖动箭头与特征值圆点反向重构矩阵。支持对称锁定、复特征值模式与复矩阵模式（Hermitian 锁定）。
+  </div>
+</header>
+
+<div class="layout">
+  <!-- 左侧面板 -->
+  <div class="panel">
+    <div class="card">
+      <h2>矩阵 A <span id="matTag" style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;">（实矩阵）</span></h2>
+      <div class="matrix-wrap">
+        <span class="mname">A</span>
+        <div class="matrix-grid">
+          <input id="m00" type="number" step="any" value="2" aria-label="a11">
+          <input id="m01" type="number" step="any" value="1" aria-label="a12">
+          <input id="m10" type="number" step="any" value="1" aria-label="a21">
+          <input id="m11" type="number" step="any" value="2" aria-label="a22">
+        </div>
+      </div>
+      <div class="meta">
+        <span>det A = <b id="detV">3</b></span>
+        <span>tr A = <b id="trV">4</b></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>特征值与特征向量</h2>
+      <div class="kv"><span class="k"><span class="dr red"></span>λ₁</span><span class="v mono" id="lam1">3.000</span></div>
+      <div class="kv"><span class="k"><span class="dr blue"></span>λ₂</span><span class="v mono" id="lam2">1.000</span></div>
+      <div class="kv"><span class="k"><span class="dr red"></span><span id="vecK1">v₁</span></span><span class="v mono" id="vec1">(0.707, 0.707)</span></div>
+      <div class="kv"><span class="k"><span class="dr blue"></span><span id="vecK2">v₂</span></span><span class="v mono" id="vec2">(0.707, −0.707)</span></div>
+      <div class="kv"><span class="k">|λ| / arg λ</span><span class="v mono" id="cabs">—</span></div>
+      <div class="kv"><span class="k" id="verifyK1">Av₁ = λ₁·v₁</span><span class="v mono" id="verify">残差 = 0</span></div>
+      <div class="kv"><span class="k" id="verifyK2">Av₂ = λ₂·v₂</span><span class="v mono" id="verify2">残差 = 0</span></div>
+      <div class="inrow">
+        <span class="k" id="lamK1">手动 λ₁</span>
+        <input id="lam1In" type="text" class="inp mono" value="3" spellcheck="false" inputmode="decimal" title="手动输入特征值（复数模式支持 1+2i），回车或失焦生效">
+        <span class="k" id="lamK2">手动 λ₂</span>
+        <input id="lam2In" type="text" class="inp mono" value="1" spellcheck="false" inputmode="decimal" title="手动输入特征值（复数模式支持 1+2i），回车或失焦生效">
+      </div>
+      <div id="status" class="status"></div>
+    </div>
+
+    <div class="card">
+      <h2>控制</h2>
+      <div class="btnrow">
+        <button id="resetBtn" class="btn primary">重置示例</button>
+        <button id="randBtn" class="btn">随机矩阵</button>
+        <button id="symBtn" class="btn" title="实模式：强制 b = c，特征向量正交">对称锁定</button>
+        <button id="cxBtn" class="btn" title="实矩阵的复特征值可视化（共轭圆点 + u/v 实虚部基）">复特征值模式</button>
+        <button id="cmBtn" class="btn" title="复矩阵：8 个实参数，独立复特征值与复特征向量">复矩阵模式</button>
+        <button id="hermBtn" class="btn" title="复矩阵模式：强制 A = A†（对角实、b = conj(c)），特征值实数">Hermitian 锁定</button>
+      </div>
+      <div class="toggles">
+        <label><input type="checkbox" id="tgGrid" checked> 网格</label>
+        <label><input type="checkbox" id="tgShape" checked> 形状（圆 / 正方形 → 像）</label>
+        <label><input type="checkbox" id="tgBasis" checked> 基向量 eₓ / eᵧ</label>
+        <label><input type="checkbox" id="tgAv" checked> Av 箭头</label>
+      </div>
+      <div class="zoomrow">
+        <span>显示比例</span>
+        <input type="range" id="zoomRange" min="24" max="160" step="1" value="64" title="主图每单位像素数">
+        <input type="number" id="zoomNum" min="24" max="160" step="1" value="64" class="zinp" title="主图每单位像素数">
+        <span>px/单位</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右侧可视化 -->
+  <div class="viz">
+    <div class="plane-row">
+      <canvas id="plane" width="560" height="560"></canvas>
+      <details class="help-viz">
+        <summary id="helpSum">使用说明（实模式）</summary>
+        <div class="help-body">
+          <ul id="helpCommon">
+            <li><b>矩阵元素</b>：直接修改即可，全部视图实时重算（复矩阵模式输入复数，如 1+2i、-i、3）；点击输入框自动全选。</li>
+            <li><b>手动输入 λ</b>：回车/失焦生效（复矩阵模式支持 1+2i 格式），与数轴/复平面圆点双向联动。</li>
+            <li><b>显示比例</b>：左侧滑动条或输入数值（24–160 px/单位）缩放主图，网格自适应。</li>
+          </ul>
+          <ul id="helpReal" class="help-mode">
+            <li><b style="color:var(--red)">红/蓝箭头</b>：特征向量 v₁、v₂，<b>单位长度</b>，在单位圆上旋转（可拉得很近，最小夹角约 1°）；虚线为 Av₁ = λ₁v₁、Av₂ = λ₂v₂ 的验证。</li>
+            <li><b>对称锁定</b>：强制 b = c；拖动特征向量时另一个自动正交，矩阵恒对称。</li>
+            <li><b>特征值数轴</b>（下方）：拖动红/蓝圆点改变 λ₁、λ₂，矩阵随之更新。</li>
+            <li><b>基向量</b>：黄色 eₓ 与青色 eᵧ，同色虚线为其像 Aeₓ、Aeᵧ（即 A 的两列）。</li>
+            <li><b>形状变换</b>：青色圆与绿色正方形 [0,1]² 经 A 变换为紫色椭圆与橙色平行四边形（半透明，可整体开关）。</li>
+          </ul>
+          <ul id="helpCx" class="help-mode" style="display:none">
+            <li>λ = x ± yi 为共轭特征值（下方复平面圆点可拖，穿越实轴平滑连续）。</li>
+            <li>w = u + iv 是 λ₁ = x + yi 的特征向量：u = Re w、v = Im w（均单位向量，单位圆上；拖动只改方向且互不影响）。</li>
+            <li><b>Aw = λw ⟺ Au = x·u − y·v、Av = y·u + x·v</b>——这正是"乘以复数 λ"（旋转-缩放）的体现，验证行即显示这两式。</li>
+            <li>A 在 (u,v) 基下为旋转-缩放 [[x, y],[−y, x]]。</li>
+          </ul>
+          <ul id="helpCm" class="help-mode" style="display:none">
+            <li>λ₁、λ₂ 为两个<b>独立</b>复特征值（下方复平面圆点可拖）。</li>
+            <li>w₁、w₂ 为复特征向量（ℂ²）：复平面中同色<b>实线/虚线箭头 = w 的两个分量</b>；主图中实线/虚线 = 实部 u / 虚部 v 投影（可拖）。</li>
+            <li><b>青/橙两个椭圆</b>：A = B + iC（B、C 为实矩阵），对实向量 v 有 A·v = B·v + i·C·v。<b>青色椭圆 = B·v 的轨迹</b>（复像的实部投影），<b>橙色椭圆 = C·v 的轨迹</b>（虚部投影）；复像位于 ℂ² 无法直接画出，两椭圆即其两个"坐标投影"。若 C = 0 橙椭圆收缩为原点。</li>
+            <li><b>Hermitian 锁定</b>：强制 A = A†（对角实、b = conj(c)）；特征值实数、特征向量自动正交，圆点只能沿实轴拖动。</li>
+          </ul>
+        </div>
+      </details>
+    </div>
+    <div class="legend">
+      <span><i style="background:#5ac8fa"></i>圆（原像）</span>
+      <span><i style="background:#b98cff"></i>椭圆（圆的像）</span>
+      <span><i style="background:#50dc9f"></i>正方形 [0,1]²</span>
+      <span><i style="background:#ffaa50"></i>平行四边形（像）</span>
+      <span><i style="background:#ffd166"></i>eₓ → Aeₓ</span>
+      <span><i style="background:#2ec4b6"></i>eᵧ → Aeᵧ</span>
+      <span id="legBC1" style="display:none"><i style="background:#5ac8fa"></i>B·圆（复像的实部投影）</span>
+      <span id="legBC2" style="display:none"><i style="background:#ffaa50"></i>C·圆（复像的虚部投影）</span>
+      <span><b>虚线 = 像 / 虚部</b></span>
+    </div>
+    <canvas id="eigline" width="560" height="120"></canvas>
+    <canvas id="cplane" width="560" height="300"></canvas>
+    <div class="cap" id="capReal">特征值数轴（范围 ±6）：拖动红色 / 蓝色圆点改变 λ₁、λ₂</div>
+    <div class="cap" id="capComplex" style="display:none">复平面：共轭特征值 λ₁ = x + yi、λ₂ = x − yi（可拖，穿越实轴平滑）</div>
+    <div class="cap" id="capCM" style="display:none">复平面：两个独立复特征值 λ₁（红）、λ₂（蓝），可拖动；实线/虚线箭头 = 各特征向量 w 的两个分量 w₁、w₂</div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   纯数学部分（与 DOM 无关，便于测试）
+   ============================================================ */
+// === MATH-START ===
+function norm(v){ const l = Math.hypot(v.x, v.y) || 1; return { x: v.x / l, y: v.y / l }; }
+function dot(u, v){ return u.x * v.x + u.y * v.y; }
+function perp(v){ return norm({ x: -v.y, y: v.x }); }
+
+// 矩阵 A = [[a,b],[c,d]] 的单个特征向量（对应特征值 l），返回单位向量
+function eigvec(a, b, c, d, l){
+  const EPS = 1e-9;
+  if (Math.abs(b) > EPS) return norm({ x: b, y: l - a });          // 从 (a-l)x + by = 0
+  if (Math.abs(c) > EPS) return norm({ x: l - d, y: c });          // 从 cx + (d-l)y = 0
+  if (Math.abs(a - l) < EPS && Math.abs(d - l) < EPS) return { x: 1, y: 0 }; // 标量矩阵
+  if (Math.abs(a - l) < EPS) return { x: 1, y: 0 };
+  return { x: 0, y: 1 };
+}
+
+// 特征对列表，按特征值从大到小排序；复数时返回 null
+function eigPairs(a, b, c, d){
+  const tr = a + d, det = a * d - b * c, disc = tr * tr - 4 * det, EPS = 1e-9;
+  if (disc < -EPS) return null;
+  const sq = Math.sqrt(Math.max(0, disc));
+  const l1 = (tr + sq) / 2, l2 = (tr - sq) / 2;
+  return [
+    { l: l1, v: eigvec(a, b, c, d, l1) },
+    { l: l2, v: eigvec(a, b, c, d, l2) },
+  ].sort((p, q) => q.l - p.l);
+}
+
+// 复数特征值（共轭对 λ = re ± im·i），实数时返回 null
+function eigComplex(a, b, c, d){
+  const tr = a + d, det = a * d - b * c, disc = tr * tr - 4 * det, EPS = 1e-9;
+  if (disc >= -EPS) return null;
+  return { re: tr / 2, im: Math.sqrt(-disc) / 2 };
+}
+
+// 由特征值 λ1,λ2 与特征向量 v1,v2 重构矩阵 A = P·diag(λ1,λ2)·P⁻¹（方向决定，长度无关）
+function matrixFromEigen(l1, l2, v1, v2){
+  const detP = v1.x * v2.y - v1.y * v2.x;
+  if (Math.abs(detP) < 1e-7) return { ok: false };                 // 特征向量线性相关
+  const i = 1 / detP;
+  return {
+    ok: true,
+    a: i * ( v1.x * l1 * v2.y - v2.x * l2 * v1.y ),
+    b: i * (-v1.x * l1 * v2.x + v2.x * l2 * v1.x ),
+    c: i * ( v1.y * l1 * v2.y - v2.y * l2 * v1.y ),
+    d: i * (-v1.y * l1 * v2.x + v2.y * l2 * v1.x ),
+  };
+}
+
+// 复数特征数据：λ = x ± iy，w = u + iv 为 λ = x + iy 的特征向量（u、v 按 |w| 归一化）
+// ySign 用于保持虚部符号（避免拖动穿越实轴时跳变）；实数时返回 {type:'real', l1, l2, u, v}
+function complexEigenData(a, b, c, d, ySign){
+  const tr = a + d, det = a * d - b * c, disc = tr * tr - 4 * det, EPS = 1e-9;
+  if (disc < -EPS){
+    const x = tr / 2, ym = Math.sqrt(-disc) / 2;
+    const y = (ySign === -1 || ySign === 1) ? ySign * ym : ym;
+    let u, v;
+    if (Math.abs(b) > EPS){                       // w2 = -(a-x-iy)/b
+      u = { x: 1, y: -(a - x) / b };
+      v = { x: 0, y: y / b };
+    } else {                                      // w1 = -(d-x-iy)/c
+      u = { x: -(d - x) / c, y: 1 };
+      v = { x: y / c, y: 0 };
+    }
+    const nw = Math.hypot(Math.hypot(u.x, u.y), Math.hypot(v.x, v.y)) || 1; // 按 |w| 归一
+    return { type: 'complex', x, y, u: { x: u.x / nw, y: u.y / nw }, v: { x: v.x / nw, y: v.y / nw } };
+  }
+  const sq = Math.sqrt(Math.max(0, disc));
+  const l1 = (tr + sq) / 2, l2 = (tr - sq) / 2;
+  return { type: 'real', x: l1, y: 0, l1, l2, u: eigvec(a, b, c, d, l1), v: eigvec(a, b, c, d, l2) };
+}
+
+// 由复数特征值 x ± iy 与实向量 u, v 重构矩阵 A = P·[[x, y],[−y, x]]·P⁻¹
+// （w = u + iv 是 λ = x + iy 的特征向量，则 A·u = xu − yv，A·v = yu + xv）
+function matrixFromComplex(x, y, u, v){
+  const detP = u.x * v.y - u.y * v.x;
+  if (Math.abs(detP) < 1e-7) return { ok: false };
+  const i = 1 / detP;
+  const m11 = u.x * x - v.x * y, m12 = u.x * y + v.x * x;
+  const m21 = u.y * x - v.y * y, m22 = u.y * y + v.y * x;
+  return {
+    ok: true,
+    a: i * (m11 * v.y - m12 * u.y),
+    b: i * (-m11 * v.x + m12 * u.x),
+    c: i * (m21 * v.y - m22 * u.y),
+    d: i * (-m21 * v.x + m22 * u.x),
+  };
+}
+
+// 残差 ‖Av − λv‖
+function residual(a, b, c, d, l, v){
+  const Ax = a * v.x + b * v.y, Ay = c * v.x + d * v.y;
+  return Math.hypot(Ax - l * v.x, Ay - l * v.y);
+}
+
+// 将 (u, v) 旋转 + 缩放为两个单位向量（|u| = |v| = 1，终点落在单位圆上）。
+// 复特征向量 w = u + iv 乘复标量 e^{iφ} 仍是特征向量，故可选取相位使 |u'| = |v'|；
+// 此时 Au = xu − yv、Av = yu + xv 仍精确成立。refU 用于在两个等价相位中选与参考最接近的。
+function unitPair(u, v, refU){
+  const a = u.x * u.x + u.y * u.y, b = v.x * v.x + v.y * v.y, c = u.x * v.x + u.y * v.y;
+  const phi = 0.5 * Math.atan2(a - b, 2 * c);
+  const mk = (ph) => {
+    const cos = Math.cos(ph), sin = Math.sin(ph);
+    const u1 = { x: u.x * cos - v.x * sin, y: u.y * cos - v.y * sin };
+    const v1 = { x: u.x * sin + v.x * cos, y: u.y * sin + v.y * cos };
+    const L = Math.hypot(u1.x, u1.y) || 1;
+    return { u: { x: u1.x / L, y: u1.y / L }, v: { x: v1.x / L, y: v1.y / L } };
+  };
+  const p1 = mk(phi), p2 = mk(phi + Math.PI / 2);
+  if (refU && dot(p2.u, refU) > dot(p1.u, refU)) return p2;
+  return p1;
+}
+
+function isScalarM(a, b, c, d){
+  const EPS = 1e-9;
+  return Math.abs(b) < EPS && Math.abs(c) < EPS && Math.abs(a - d) < EPS;
+}
+
+/* ---------- 复矩阵（ℂ²）支持：复数为 {re, im} ---------- */
+
+function cadd(u, v){ return { re: u.re + v.re, im: u.im + v.im }; }
+function csub(u, v){ return { re: u.re - v.re, im: u.im - v.im }; }
+function cconj(u){ return { re: u.re, im: -u.im }; }
+function cneg(u){ return { re: -u.re, im: -u.im }; }
+function cmul(u, v){ return { re: u.re * v.re - u.im * v.im, im: u.re * v.im + u.im * v.re }; }
+function cdiv(u, v){
+  const d = v.re * v.re + v.im * v.im;
+  if (d < 1e-30) return null;
+  return { re: (u.re * v.re + u.im * v.im) / d, im: (u.im * v.re - u.re * v.im) / d };
+}
+function cabs(u){ return Math.hypot(u.re, u.im); }
+function csqrt(z){
+  const r = Math.hypot(z.re, z.im);
+  if (r < 1e-30) return { re: 0, im: 0 };
+  const m = Math.sqrt(Math.max(0, (r + z.re) / 2));   // 用带符号实部：负数实部 → 纯虚结果
+  const n = Math.sqrt(Math.max(0, (r - z.re) / 2));
+  return z.im >= 0 ? { re: m, im: n } : { re: m, im: -n };
+}
+// 复数 2×2 矩阵乘法：X·Y（X/Y = {a,b,c,d}，复元素）
+function cmat2Mul(X, Y){
+  return {
+    a: cadd(cmul(X.a, Y.a), cmul(X.b, Y.c)),
+    b: cadd(cmul(X.a, Y.b), cmul(X.b, Y.d)),
+    c: cadd(cmul(X.c, Y.a), cmul(X.d, Y.c)),
+    d: cadd(cmul(X.c, Y.b), cmul(X.d, Y.d)),
+  };
+}
+// 复数 2×2 求逆；奇异返回 null
+function cinv2(M){
+  const det = csub(cmul(M.a, M.d), cmul(M.b, M.c));
+  if (cabs(det) < 1e-12) return null;
+  const id = cdiv({ re: 1, im: 0 }, det);
+  if (!id) return null;
+  return {
+    a: cmul(M.d, id), b: cmul(cneg(M.b), id),
+    c: cmul(cneg(M.c), id), d: cmul(M.a, id),
+  };
+}
+// 复矩阵 × 复向量（w = {c1, c2}）
+function cmatVec(A, w){
+  return {
+    c1: cadd(cmul(A.a, w.c1), cmul(A.b, w.c2)),
+    c2: cadd(cmul(A.c, w.c1), cmul(A.d, w.c2)),
+  };
+}
+// 复矩阵特征向量（对应特征值 l），ℂ² 归一化
+function cmEigvec(A, l){
+  const EPS = 1e-9;
+  let w1, w2;
+  if (cabs(A.b) > EPS){
+    w1 = { re: 1, im: 0 };
+    w2 = cdiv(cmul(csub(A.a, l), { re: -1, im: 0 }), A.b);   // w2 = -(a-l)/b
+    if (!w2) return null;
+  } else if (cabs(A.c) > EPS){
+    w2 = { re: 1, im: 0 };
+    w1 = cdiv(cmul(csub(A.d, l), { re: -1, im: 0 }), A.c);   // w1 = -(d-l)/c
+    if (!w1) return null;
+  } else {
+    if (cabs(csub(A.a, l)) < EPS && cabs(csub(A.d, l)) >= EPS) return { c1: { re: 1, im: 0 }, c2: { re: 0, im: 0 } };
+    if (cabs(csub(A.d, l)) < EPS && cabs(csub(A.a, l)) >= EPS) return { c1: { re: 0, im: 0 }, c2: { re: 1, im: 0 } };
+    return { c1: { re: 1, im: 0 }, c2: { re: 0, im: 0 } };
+  }
+  const n = Math.hypot(cabs(w1), cabs(w2)) || 1;
+  return { c1: { re: w1.re / n, im: w1.im / n }, c2: { re: w2.re / n, im: w2.im / n } };
+}
+// 复矩阵的特征值 λ1,λ2 与特征向量 w1,w2
+function complexEigen2x2(A){
+  const tr = cadd(A.a, A.d);
+  const det = csub(cmul(A.a, A.d), cmul(A.b, A.c));
+  const disc = csub(cmul(tr, tr), cmul({ re: 4, im: 0 }, det));
+  const sq = csqrt(disc);
+  const l1 = cdiv(cadd(tr, sq), { re: 2, im: 0 });
+  const l2 = cdiv(csub(tr, sq), { re: 2, im: 0 });
+  if (!l1 || !l2) return null;
+  const w1 = cmEigvec(A, l1), w2 = cmEigvec(A, l2);
+  if (!w1 || !w2) return null;
+  return { ok: true, l1, l2, w1, w2 };
+}
+// 由复特征值 λ1,λ2 与复特征向量 w1,w2 重构复矩阵 A = P·diag(λ1,λ2)·P⁻¹
+function matrixFromComplexEigen(l1, l2, w1, w2){
+  const P = { a: w1.c1, b: w2.c1, c: w1.c2, d: w2.c2 };
+  const D = { a: l1, b: { re: 0, im: 0 }, c: { re: 0, im: 0 }, d: l2 };
+  const Pi = cinv2(P);
+  if (!Pi) return null;
+  return cmat2Mul(cmat2Mul(P, D), Pi);
+}
+// 残差 ‖Aw − λw‖
+function cmResidual(A, l, w){
+  const Aw = cmatVec(A, w);
+  const lw = { c1: cmul(l, w.c1), c2: cmul(l, w.c2) };
+  return Math.hypot(cabs(csub(Aw.c1, lw.c1)), cabs(csub(Aw.c2, lw.c2)));
+}
+// 复向量内积 w†·v（用于连续性判断）
+function cmDot(w, v){ return cadd(cmul(cconj(w.c1), v.c1), cmul(cconj(w.c2), v.c2)); }
+
+/* ---------- 字符串 ↔ 复数 ---------- */
+function parseComplex(s){
+  if (s == null) return null;
+  s = String(s).replace(/\s+/g, '').toLowerCase();
+  if (!s) return null;
+  if (s === 'i') return { re: 0, im: 1 };
+  if (s === '-i') return { re: 0, im: -1 };
+  if (s.endsWith('i')){
+    const body = s.slice(0, -1);
+    if (body === '' || body === '+') return { re: 0, im: 1 };
+    if (body === '-') return { re: 0, im: -1 };
+    if (/^[+-]?[\d.]+(?:e[+-]?\d+)?$/.test(body)){
+      const bv = parseFloat(body);
+      if (isFinite(bv)) return { re: 0, im: bv };
+    }
+  }
+  const m = s.match(/^([+-]?[\d.]+(?:e[+-]?\d+)?)([+-][\d.]+(?:e[+-]?\d+)?)i$/);
+  if (m){
+    const re = parseFloat(m[1]), im = parseFloat(m[2]);
+    if (isFinite(re) && isFinite(im)) return { re, im };
+  }
+  if (/^[+-]?[\d.]+(?:e[+-]?\d+)?$/.test(s)){
+    const re = parseFloat(s);
+    if (isFinite(re)) return { re, im: 0 };
+  }
+  return null;
+}
+function fmtNum(x, d = 3){
+  if (!isFinite(x)) return '—';
+  const p = 10 ** d;
+  return String(Math.round(x * p) / p);
+}
+function fmtComplex(re, im){
+  if (!isFinite(re) || !isFinite(im)) return '—';
+  if (Math.abs(im) < 1e-12) return fmtNum(re);
+  return `${fmtNum(re)}${im >= 0 ? '+' : '-'}${fmtNum(Math.abs(im))}i`;
+}
+// === MATH-END ===
+
+/* ============================================================
+   UI 部分
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const cv = $('plane'), lc = $('eigline'), cp = $('cplane');
+const ctx = cv.getContext('2d'), lctx = lc.getContext('2d'), cctx = cp.getContext('2d');
+
+const PLANE = 560, ELW = 560, ELH = 120, CPW = 560, CPH = 300;
+const ZOOM_MIN = 24, ZOOM_MAX = 160;        // 主图显示比例范围（px/单位）
+const RANGE = 6;                            // 特征值数轴 / 复平面实轴范围 ±6
+const IRANGE = 3.4;                         // 复平面虚轴范围 ±3.4
+const MIN_SEP = 0.02;                       // 两向量最小夹角 sin 值（约 1.1°，可拉得很近）
+const CU_LEN_MIN = 0.2, CU_LEN_MAX = 3.5;   // 复模式下 u/v 显示长度范围
+
+const dpr = window.devicePixelRatio || 1;
+cv.width = PLANE * dpr; cv.height = PLANE * dpr;
+lc.width = ELW * dpr; lc.height = ELH * dpr;
+cp.width = CPW * dpr; cp.height = CPH * dpr;
+ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+cctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+// 全局状态
+const S = {
+  a: 2, b: 1, c: 1, d: 2,
+  l1: 3, l2: 1,
+  v1: { x: Math.SQRT1_2, y:  Math.SQRT1_2 },   // 单位特征向量
+  v2: { x: Math.SQRT1_2, y: -Math.SQRT1_2 },
+  complex: null,          // {re, im} | null（实模式下复数特征值显示用）
+  hasV2: true,            // true=真特征向量, false=隐藏, 'arbitrary'=任意方向(标量矩阵)
+  note: '',
+  showGrid: true, showShape: true, showBasis: true, showAv: true,
+  zoom: 64,               // 主图显示比例（px/单位）
+  symLock: false,         // 对称锁定（实模式）
+  complexMode: false,     // 复特征值模式（实矩阵）
+  cmMode: false,          // 复矩阵模式
+  herm: false,            // Hermitian 锁定（复矩阵模式）
+  // 复特征值模式状态
+  ctype: 'real',          // 'complex' | 'real'
+  cx: 0, cy: 0, cl1: 3, cl2: 1, cu: null, cv: null,
+  // 复矩阵模式状态
+  cmA: { a: { re: 1, im: 2 }, b: { re: 1, im: 0 }, c: { re: -1, im: 0 }, d: { re: 1, im: -2 } },
+  cmL1: null, cmL2: null, cmW1: null, cmW2: null,
+};
+
+function fmt(x, d = 3){
+  if (!isFinite(x)) return '—';
+  const p = 10 ** d;
+  return String(Math.round(x * p) / p);
+}
+function fmtC(re, im){
+  return im >= 0 ? `${fmt(re)} + ${fmt(im)}i` : `${fmt(re)} - ${fmt(Math.abs(im))}i`;
+}
+const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+
+/* ---------- 模式 UI ---------- */
+
+function switchInputTypes(){
+  const text = S.cmMode;
+  ['m00', 'm01', 'm10', 'm11'].forEach(id => { $(id).type = text ? 'text' : 'number'; });
+}
+function setModeUI(){
+  lc.style.display = (!S.complexMode && !S.cmMode) ? 'block' : 'none';
+  cp.style.display  = (S.complexMode || S.cmMode) ? 'block' : 'none';
+  $('capReal').style.display    = (!S.complexMode && !S.cmMode) ? 'block' : 'none';
+  $('capComplex').style.display = S.complexMode ? 'block' : 'none';
+  $('capCM').style.display      = S.cmMode ? 'block' : 'none';
+  $('symBtn').style.display = S.cmMode ? 'none' : 'inline-block';
+  $('hermBtn').style.display = S.cmMode ? 'inline-block' : 'none';
+  $('symBtn').classList.toggle('active', S.symLock);
+  $('cxBtn').classList.toggle('active', S.complexMode);
+  $('cmBtn').classList.toggle('active', S.cmMode);
+  $('hermBtn').classList.toggle('active', S.herm);
+  $('matTag').textContent = S.cmMode ? '（复矩阵，元素为复数）' : (S.complexMode ? '（实矩阵 · 复特征值）' : '（实矩阵）');
+  $('legBC1').style.display = S.cmMode ? 'inline' : 'none';   // B/C 椭圆图例仅在复矩阵模式显示
+  $('legBC2').style.display = S.cmMode ? 'inline' : 'none';
+  // 使用说明：只显示当前模式相关内容
+  $('helpReal').style.display = (!S.complexMode && !S.cmMode) ? 'block' : 'none';
+  $('helpCx').style.display   = S.complexMode ? 'block' : 'none';
+  $('helpCm').style.display   = S.cmMode ? 'block' : 'none';
+  $('helpSum').textContent = S.cmMode
+    ? '使用说明（复矩阵模式）'
+    : (S.complexMode ? '使用说明（复特征值模式）' : '使用说明（实模式）');
+  switchInputTypes();
+}
+
+/* ---------- 同步（矩阵 → 特征数据） ---------- */
+
+// 实模式：分配特征对给 v1/v2（方向相似度匹配 + 符号稳定）
+function assignPairs(pairs){
+  const [p1, p2] = pairs;
+  const usePrev = !!(S.v1 && S.v2) && Math.abs(p1.l - p2.l) > 1e-9;
+  let q1, q2;
+  if (usePrev){
+    const u1 = norm(S.v1), u2 = norm(S.v2);
+    if (Math.abs(dot(p1.v, u1)) >= Math.abs(dot(p1.v, u2))) { q1 = p1; q2 = p2; }
+    else                                                     { q1 = p2; q2 = p1; }
+  } else { q1 = p1; q2 = p2; }
+  S.l1 = q1.l; S.l2 = q2.l;
+  S.v1 = S.v1 && dot(q1.v, S.v1) < 0 ? { x: -q1.v.x, y: -q1.v.y } : q1.v;
+  S.v2 = S.v2 && dot(q2.v, S.v2) < 0 ? { x: -q2.v.x, y: -q2.v.y } : q2.v;
+}
+
+function syncRealFromMatrix(){
+  const { a, b, c, d } = S;
+  const complex = eigComplex(a, b, c, d);
+  S.complex = complex;
+  const pairs = complex ? null : eigPairs(a, b, c, d);
+  if (pairs){
+    assignPairs(pairs);
+    if (Math.abs(S.l1 - S.l2) < 1e-9){
+      if (isScalarM(a, b, c, d)){
+        S.note = '标量矩阵：任意方向都是特征向量（蓝色为示意方向）';
+        S.hasV2 = 'arbitrary';
+        S.v2 = perp(S.v1);
+      } else {
+        S.note = 'λ₁ = λ₂（重根），仅有一个特征向量方向';
+        S.hasV2 = false;
+        S.v2 = perp(S.v1);
+      }
+    } else {
+      S.note = S.symLock ? '对称模式：b = c，特征向量相互正交' : '';
+      S.hasV2 = true;
+    }
+  } else {
+    S.l1 = S.l2 = NaN; S.v1 = S.v2 = null; S.hasV2 = false;
+    S.note = `特征值为复数：λ = ${fmtC(complex.re, complex.im)}，无实特征向量（可开启"复特征值模式"）`;
+  }
+  const out = Math.max(Math.abs(S.l1), Math.abs(S.l2));
+  if (!S.complex && out > RANGE) S.note += (S.note ? '；' : '') + 'λ 超出数轴显示范围 ±6';
+  drawAll();
+}
+
+// 复特征值模式（实矩阵）：保持虚部符号避免跳变；u、v 恒为单位向量（单位圆上），拖动互不影响
+function syncComplexFromMatrix(){
+  const { a, b, c, d } = S;
+  const sign = (S.cy && Math.abs(S.cy) > 1e-12) ? Math.sign(S.cy) : 1;
+  const data = complexEigenData(a, b, c, d, sign);
+  if (data.type === 'complex'){
+    // 若当前 (u,v) 仍是本矩阵的特征向量（由状态重建而来），保持原样——拖动 u 不扰动 v
+    let keep = false;
+    if (S.cu && S.cv && S.ctype === 'complex'){
+      const Au = { x: a * S.cu.x + b * S.cu.y, y: c * S.cu.x + d * S.cu.y };
+      const Av = { x: a * S.cv.x + b * S.cv.y, y: c * S.cv.x + d * S.cv.y };
+      const e1 = { x: S.cx * S.cu.x - S.cy * S.cv.x, y: S.cx * S.cu.y - S.cy * S.cv.y };
+      const e2 = { x: S.cy * S.cu.x + S.cx * S.cv.x, y: S.cy * S.cu.y + S.cx * S.cv.y };
+      keep = Math.hypot(Au.x - e1.x, Au.y - e1.y) < 1e-6 && Math.hypot(Av.x - e2.x, Av.y - e2.y) < 1e-6;
+    }
+    if (keep){
+      S.cx = data.x; S.cy = data.y; S.ctype = 'complex';
+    } else {
+      // 矩阵被编辑：重新导出并归一为双单位（终点在单位圆上），相位取与上次最接近的
+      const pp = unitPair(data.u, data.v, S.cu);
+      if (S.cu && dot(pp.u, S.cu) < 0){ pp.u = { x: -pp.u.x, y: -pp.u.y }; pp.v = { x: -pp.v.x, y: -pp.v.y }; }
+      S.cx = data.x; S.cy = data.y; S.cu = pp.u; S.cv = pp.v; S.ctype = 'complex';
+    }
+    S.note = `w = u + iv 为 λ₁ 的特征向量：Au = x·u − y·v、Av = y·u + x·v（x、y 为 λ 的实/虚部）`;
+  } else {
+    S.cx = data.x; S.cy = 0; S.cl1 = data.l1; S.cl2 = data.l2;
+    S.cu = S.cu && dot(data.u, S.cu) < 0 ? { x: -data.u.x, y: -data.u.y } : data.u;
+    S.cv = S.cv && dot(data.v, S.cv) < 0 ? { x: -data.v.x, y: -data.v.y } : data.v;
+    S.ctype = 'real';
+    S.note = '当前矩阵特征值为实数：圆点在实轴上，可沿实轴拖动（拖到轴外则转为复数模式）';
+  }
+  drawAll();
+}
+
+// 复矩阵模式：矩阵 → λ1, λ2, w1, w2
+function syncComplexMat(){
+  const r = complexEigen2x2(S.cmA);
+  if (!r){ S.note = '无法计算特征值'; drawAll(); return; }
+  // 与上一次的 w1/w2 匹配，保持红/蓝连续（避免主根取法不同导致交换）
+  if (S.cmW1 && S.cmW2){
+    const s11 = cabs(cmDot(r.w1, S.cmW1)), s12 = cabs(cmDot(r.w1, S.cmW2));
+    const s21 = cabs(cmDot(r.w2, S.cmW1)), s22 = cabs(cmDot(r.w2, S.cmW2));
+    if (s11 + s22 < s12 + s21){
+      const tl = r.l1, tw = r.w1;
+      r.l1 = r.l2; r.w1 = r.w2;
+      r.l2 = tl; r.w2 = tw;
+    }
+  }
+  if (S.cmW1 && cmDot(r.w1, S.cmW1).re < 0){ r.w1 = { c1: cneg(r.w1.c1), c2: cneg(r.w1.c2) }; }
+  if (S.cmW2 && cmDot(r.w2, S.cmW2).re < 0){ r.w2 = { c1: cneg(r.w2.c1), c2: cneg(r.w2.c2) }; }
+  S.cmL1 = r.l1; S.cmL2 = r.l2; S.cmW1 = r.w1; S.cmW2 = r.w2;
+  S.note = S.herm
+    ? 'Hermitian 锁定：A = A†（对角实、b = conj(c)），特征值为实数，特征向量正交'
+    : '复矩阵 A = B + iC；w₁、w₂ 为复特征向量（复平面同色实/虚线箭头 = 两个分量，主图实/虚线 = 实部 u / 虚部 v 投影）';
+  drawAll();
+}
+
+function syncAll(){
+  if (S.cmMode) syncComplexMat();
+  else if (S.complexMode) syncComplexFromMatrix();
+  else syncRealFromMatrix();
+}
+
+/* ---------- 反向同步（特征 → 矩阵） ---------- */
+
+function rebuildRealMatrix(){
+  const r = matrixFromEigen(S.l1, S.l2, S.v1, S.v2);
+  if (!r.ok){ S.note = '特征向量线性相关，无法确定矩阵'; drawAll(); return; }
+  S.a = r.a; S.b = r.b; S.c = r.c; S.d = r.d;
+  setMatrixInputs();
+  syncRealFromMatrix();
+}
+
+function rebuildComplexMatrix(){
+  if (S.ctype === 'complex'){
+    const r = matrixFromComplex(S.cx, S.cy, S.cu, S.cv);
+    if (!r.ok){ S.note = 'u、v 线性相关，无法确定矩阵'; drawAll(); return; }
+    S.a = r.a; S.b = r.b; S.c = r.c; S.d = r.d;
+  } else {
+    const r = matrixFromEigen(S.cl1, S.cl2, S.cu, S.cv);
+    if (!r.ok){ S.note = 'u、v 线性相关，无法确定矩阵'; drawAll(); return; }
+    S.a = r.a; S.b = r.b; S.c = r.c; S.d = r.d;
+  }
+  setMatrixInputs();
+  syncComplexFromMatrix();
+}
+
+// Hermitian 投影：对角取实部、b = conj(c)
+function projectHermitian(A){
+  return {
+    a: { re: A.a.re, im: 0 },
+    b: { re: A.c.re, im: -A.c.im },
+    c: { re: A.c.re, im: A.c.im },
+    d: { re: A.d.re, im: 0 },
+  };
+}
+// w 的酉正交补：w2 = (−conj(w₂), conj(w₁))
+function cmUnitaryComp(w){
+  return { c1: { re: -w.c2.re, im: w.c2.im }, c2: { re: w.c1.re, im: -w.c1.im } };
+}
+
+function rebuildComplexMat(){
+  const A = matrixFromComplexEigen(S.cmL1, S.cmL2, S.cmW1, S.cmW2);
+  if (!A){ S.note = '特征向量线性相关，无法重构矩阵'; drawAll(); return; }
+  S.cmA = S.herm ? projectHermitian(A) : A;
+  setMatrixInputs();
+  syncComplexMat();
+}
+
+/* ---------- 读数 ---------- */
+
+function updateReadouts(){
+  if (S.cmMode){
+    const tr = cadd(S.cmA.a, S.cmA.d);
+    const det = csub(cmul(S.cmA.a, S.cmA.d), cmul(S.cmA.b, S.cmA.c));
+    $('detV').textContent = fmtComplex(det.re, det.im);
+    $('trV').textContent = fmtComplex(tr.re, tr.im);
+    $('vecK1').textContent = 'w₁';
+    $('vecK2').textContent = 'w₂';
+    $('verifyK1').textContent = 'Aw₁ = λ₁·w₁';
+    $('verifyK2').textContent = 'Aw₂ = λ₂·w₂';
+    if (S.cmL1){
+      $('lam1').textContent = fmtC(S.cmL1.re, S.cmL1.im);
+      $('lam2').textContent = fmtC(S.cmL2.re, S.cmL2.im);
+      // 用 fmtComplex（去掉 +0i）缩短文本，避免超出读数行被截断
+      $('vec1').textContent = `w₁=(${fmtComplex(S.cmW1.c1.re, S.cmW1.c1.im)}, ${fmtComplex(S.cmW1.c2.re, S.cmW1.c2.im)})`;
+      $('vec2').textContent = `w₂=(${fmtComplex(S.cmW2.c1.re, S.cmW2.c1.im)}, ${fmtComplex(S.cmW2.c2.re, S.cmW2.c2.im)})`;
+      $('cabs').textContent = `|λ₁|=${fmt(cabs(S.cmL1))}, |λ₂|=${fmt(cabs(S.cmL2))}`;
+      $('verify').textContent = `残差 = ${fmt(cmResidual(S.cmA, S.cmL1, S.cmW1), 2)}`;
+      $('verify2').textContent = `残差 = ${fmt(cmResidual(S.cmA, S.cmL2, S.cmW2), 2)}`;
+    }
+    const li1 = $('lam1In'), li2 = $('lam2In');
+    $('lamK1').textContent = '手动 λ₁'; $('lamK2').textContent = '手动 λ₂';
+    li1.disabled = false; li2.disabled = false;
+    li1.value = fmtComplex(S.cmL1.re, S.cmL1.im);
+    li2.value = fmtComplex(S.cmL2.re, S.cmL2.im);
+  } else {
+    $('detV').textContent = fmt(S.a * S.d - S.b * S.c);
+    $('trV').textContent = fmt(S.a + S.d);
+    if (S.complexMode){
+      if (S.ctype === 'complex'){
+        // λ = x ± yi；w = u + iv 是 λ₁ = x + yi 的特征向量（u = Re w、v = Im w）
+        $('lam1').textContent = fmtC(S.cx,  S.cy);
+        $('lam2').textContent = fmtC(S.cx, -S.cy);
+        $('vecK1').textContent = 'u（Re w）';
+        $('vecK2').textContent = 'v（Im w）';
+        $('verifyK1').textContent = 'Au = x·u − y·v';
+        $('verifyK2').textContent = 'Av = y·u + x·v';
+        $('vec1').textContent = `(${fmt(S.cu.x)}, ${fmt(S.cu.y)})`;
+        $('vec2').textContent = `(${fmt(S.cv.x)}, ${fmt(S.cv.y)})`;
+        $('cabs').textContent = `|λ|=${fmt(Math.hypot(S.cx, S.cy))}, arg=${fmt(Math.atan2(S.cy, S.cx) * 180 / Math.PI)}°`;
+        const Au = { x: S.a * S.cu.x + S.b * S.cu.y, y: S.c * S.cu.x + S.d * S.cu.y };
+        const Av = { x: S.a * S.cv.x + S.b * S.cv.y, y: S.c * S.cv.x + S.d * S.cv.y };
+        const w1 = { x: S.cx * S.cu.x - S.cy * S.cv.x, y: S.cx * S.cu.y - S.cy * S.cv.y };
+        const w2 = { x: S.cy * S.cu.x + S.cx * S.cv.x, y: S.cy * S.cu.y + S.cx * S.cv.y };
+        $('verify').textContent = `残差 = ${fmt(Math.hypot(Au.x - w1.x, Au.y - w1.y), 2)}`;
+        $('verify2').textContent = `残差 = ${fmt(Math.hypot(Av.x - w2.x, Av.y - w2.y), 2)}`;
+      } else {
+        $('lam1').textContent = fmt(S.cl1);
+        $('lam2').textContent = fmt(S.cl2);
+        $('vecK1').textContent = 'u';
+        $('vecK2').textContent = 'v';
+        $('verifyK1').textContent = 'Au = λ₁·u';
+        $('verifyK2').textContent = 'Av = λ₂·v';
+        $('vec1').textContent = `(${fmt(S.cu.x)}, ${fmt(S.cu.y)})`;
+        $('vec2').textContent = `(${fmt(S.cv.x)}, ${fmt(S.cv.y)})`;
+        $('cabs').textContent = '—';
+        $('verify').textContent = `残差 = ${fmt(residual(S.a, S.b, S.c, S.d, S.cl1, S.cu), 2)}`;
+        $('verify2').textContent = `残差 = ${fmt(residual(S.a, S.b, S.c, S.d, S.cl2, S.cv), 2)}`;
+      }
+    } else if (S.complex){
+      $('lam1').textContent = fmtC(S.complex.re,  S.complex.im);
+      $('lam2').textContent = fmtC(S.complex.re, -S.complex.im);
+      $('vecK1').textContent = 'v₁';
+      $('vecK2').textContent = 'v₂';
+      $('verifyK1').textContent = '—';
+      $('verifyK2').textContent = '—';
+      $('vec1').textContent = '—（无实特征向量）';
+      $('vec2').textContent = '—';
+      $('cabs').textContent = `|λ|=${fmt(Math.hypot(S.complex.re, S.complex.im))}`;
+      $('verify').textContent = '—';
+      $('verify2').textContent = '—';
+    } else {
+      $('lam1').textContent = fmt(S.l1);
+      $('lam2').textContent = fmt(S.l2);
+      $('vecK1').textContent = 'v₁';
+      $('vecK2').textContent = 'v₂';
+      $('verifyK1').textContent = 'Av₁ = λ₁·v₁';
+      $('verifyK2').textContent = 'Av₂ = λ₂·v₂';
+      $('vec1').textContent = `(${fmt(S.v1.x)}, ${fmt(S.v1.y)})`;
+      $('vec2').textContent = S.hasV2 ? `(${fmt(S.v2.x)}, ${fmt(S.v2.y)})` : '—';
+      $('cabs').textContent = '—';
+      $('verify').textContent = `残差 = ${fmt(residual(S.a, S.b, S.c, S.d, S.l1, S.v1), 2)}`;
+      $('verify2').textContent = S.hasV2 === true
+        ? `残差 = ${fmt(residual(S.a, S.b, S.c, S.d, S.l2, S.v2), 2)}`
+        : (S.hasV2 === 'arbitrary' ? 'v₂ 为任意方向（非唯一）' : '—');
+    }
+    // 手动特征值输入框（实模式 / 复特征值模式）
+    const li1 = $('lam1In'), li2 = $('lam2In');
+    if (S.complexMode){
+      if (S.ctype === 'complex'){
+        $('lamK1').textContent = 'Re λ（实部）';
+        $('lamK2').textContent = 'Im λ（虚部）';
+        li1.disabled = false; li2.disabled = false;
+        li1.value = fmt(S.cx); li2.value = fmt(S.cy);
+      } else {
+        $('lamK1').textContent = '手动 λ₁';
+        $('lamK2').textContent = '手动 λ₂';
+        li1.disabled = false; li2.disabled = false;
+        li1.value = fmt(S.cl1); li2.value = fmt(S.cl2);
+      }
+    } else if (S.complex){
+      $('lamK1').textContent = 'λ₁';
+      $('lamK2').textContent = 'λ₂';
+      li1.disabled = true; li2.disabled = true;
+      li1.value = fmtC(S.complex.re,  S.complex.im);
+      li2.value = fmtC(S.complex.re, -S.complex.im);
+    } else {
+      $('lamK1').textContent = '手动 λ₁';
+      $('lamK2').textContent = '手动 λ₂';
+      li1.disabled = false; li2.disabled = false;
+      li1.value = fmt(S.l1); li2.value = fmt(S.l2);
+    }
+  }
+  const st = $('status');
+  if (S.note){ st.textContent = S.note; st.className = 'status warn'; }
+  else { st.textContent = '✓ 满足 Av = λv'; st.className = 'status'; }
+}
+
+/* ---------- 绘制 ---------- */
+
+function arrow(x0, y0, x1, y1, hs){
+  const a = Math.atan2(y1 - y0, x1 - x0);
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x1 - hs * Math.cos(a - 0.42), y1 - hs * Math.sin(a - 0.42));
+  ctx.lineTo(x1 - hs * Math.cos(a + 0.42), y1 - hs * Math.sin(a + 0.42));
+  ctx.closePath(); ctx.fill();
+}
+
+function drawPlane(){
+  const W = PLANE, H = PLANE, cx = W / 2, cy = H / 2, u = S.zoom;
+  const halfU = H / 2 / u;                 // 可见半范围（单位）
+  const cl = halfU - 0.3;                  // 箭头超界钳制长度（单位）
+  const gstep = u >= 130 ? 0.25 : u >= 70 ? 0.5 : u >= 32 ? 1 : 2;
+  const gn = Math.ceil(halfU / gstep);
+  ctx.clearRect(0, 0, W, H);
+
+  // 网格（间距随显示比例自适应）
+  if (S.showGrid){
+    ctx.strokeStyle = 'rgba(255,255,255,0.055)'; ctx.lineWidth = 1;
+    for (let i = -gn; i <= gn; i++){
+      const gv = i * gstep;
+      ctx.beginPath(); ctx.moveTo(cx + gv * u, 0); ctx.lineTo(cx + gv * u, H); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, cy + gv * u); ctx.lineTo(W, cy + gv * u); ctx.stroke();
+    }
+  }
+  // 坐标轴
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(W, cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H); ctx.stroke();
+  // 刻度（只标整数位置）
+  ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.font = '10px ui-monospace, Menlo, monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let i = -gn; i <= gn; i++){
+    const gv = i * gstep, iv = Math.round(gv);
+    if (Math.abs(gv - iv) > 1e-9 || iv === 0) continue;
+    ctx.fillText(String(iv), cx + gv * u + 3, cy + 4);
+  }
+  ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  for (let i = -gn; i <= gn; i++){
+    const gv = i * gstep, iv = Math.round(gv);
+    if (Math.abs(gv - iv) > 1e-9 || iv === 0) continue;
+    ctx.fillText(String(iv), cx + 4, cy - gv * u - 2);
+  }
+
+  // 形状（半透明，仅实矩阵模式）
+  if (!S.cmMode && S.showShape && isFinite(S.a)){
+    ctx.fillStyle = 'rgba(90,200,250,0.08)';
+    ctx.strokeStyle = 'rgba(90,200,250,0.45)'; ctx.lineWidth = 1; ctx.setLineDash([5, 5]);
+    ctx.beginPath(); ctx.arc(cx, cy, u, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(80,220,160,0.10)';
+    ctx.strokeStyle = 'rgba(80,220,160,0.6)'; ctx.lineWidth = 1.2;
+    ctx.fillRect(cx, cy, u, -u); ctx.strokeRect(cx, cy, u, -u);
+    ctx.fillStyle = 'rgba(185,140,255,0.13)';
+    ctx.strokeStyle = 'rgba(185,140,255,0.75)'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let k = 0; k <= 72; k++){
+      const t = k / 72 * Math.PI * 2, x = Math.cos(t), y = Math.sin(t);
+      const px = cx + (S.a * x + S.b * y) * u, py = cy - (S.c * x + S.d * y) * u;
+      k ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,170,80,0.13)';
+    ctx.strokeStyle = 'rgba(255,170,80,0.75)'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + S.a * u, cy - S.c * u);
+    ctx.lineTo(cx + (S.a + S.b) * u, cy - (S.c + S.d) * u);
+    ctx.lineTo(cx + S.b * u, cy - S.d * u);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+
+  // 基向量 eₓ / eᵧ 及其像（仅实矩阵模式）
+  if (!S.cmMode && S.showBasis && isFinite(S.a)){
+    const bases = [ { e: { x: 1, y: 0 }, col: '#ffd166', name: 'eₓ' }, { e: { x: 0, y: 1 }, col: '#2ec4b6', name: 'eᵧ' } ];
+    for (const b of bases){
+      const Ae = { x: S.a * b.e.x + S.b * b.e.y, y: S.c * b.e.x + S.d * b.e.y };
+      let q = { x: Ae.x, y: Ae.y };
+      const L = Math.hypot(q.x, q.y);
+      const clamped = L > cl;
+      if (clamped) q = { x: q.x / L * cl, y: q.y / L * cl };
+      ctx.strokeStyle = b.col; ctx.fillStyle = b.col; ctx.globalAlpha = 0.75; ctx.lineWidth = 1.4;
+      ctx.setLineDash([5, 4]); arrow(cx, cy, cx + q.x * u, cy - q.y * u, 6);
+      ctx.setLineDash([]);
+      if (clamped){ ctx.beginPath(); ctx.arc(cx + q.x * u, cy - q.y * u, 3, 0, Math.PI * 2); ctx.fill(); }
+      ctx.globalAlpha = 1; ctx.lineWidth = 1.6;
+      arrow(cx, cy, cx + b.e.x * u, cy - b.e.y * u, 6);
+      ctx.font = '11px ui-monospace, Menlo, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+      ctx.fillText('A' + b.name, cx + q.x * u + 8, cy - q.y * u - 4);
+      ctx.fillText(b.name, cx + b.e.x * u + 8, cy - b.e.y * u - 4);
+    }
+  }
+
+  // 特征向量 / 复基向量
+  if (S.cmMode){
+    // 单位圆参考（复特征向量的实部/虚部投影长度 ≤ 1）
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1; ctx.setLineDash([5, 5]);
+    ctx.beginPath(); ctx.arc(cx, cy, u, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    // 单位圆在实部 B 与虚部 C 下的像（A = B + iC；A·v = B·v + i·C·v）
+    if (S.showShape && isFinite(S.cmA.a.re)){
+      const B = [
+        [S.cmA.a.re, S.cmA.b.re],
+        [S.cmA.c.re, S.cmA.d.re],
+      ];
+      const C = [
+        [S.cmA.a.im, S.cmA.b.im],
+        [S.cmA.c.im, S.cmA.d.im],
+      ];
+      const ell = (M, col) => {
+        ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        for (let k = 0; k <= 72; k++){
+          const t = k / 72 * Math.PI * 2, x = Math.cos(t), y = Math.sin(t);
+          const px = cx + (M[0][0] * x + M[0][1] * y) * u, py = cy - (M[1][0] * x + M[1][1] * y) * u;
+          k ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+        }
+        ctx.stroke(); ctx.setLineDash([]);
+      };
+      ell(B, 'rgba(90,200,250,0.55)');   // 实部 B 的像
+      ell(C, 'rgba(255,170,80,0.55)');   // 虚部 C 的像
+    }
+    if (S.cmW1 && S.cmW2){
+      const parts = [
+        { w: S.cmW1, part: 'u', col: '#ff6b9d', name: 'u₁' },
+        { w: S.cmW1, part: 'v', col: '#ff9ec7', name: 'v₁' },
+        { w: S.cmW2, part: 'u', col: '#5db9ff', name: 'u₂' },
+        { w: S.cmW2, part: 'v', col: '#9edbff', name: 'v₂' },
+      ];
+      for (const p of parts){
+        const vec = p.part === 'u' ? { x: p.w.c1.re, y: p.w.c2.re } : { x: p.w.c1.im, y: p.w.c2.im };
+        if (Math.hypot(vec.x, vec.y) < 1e-6) continue;
+        const tpx = cx + vec.x * u, tpy = cy - vec.y * u;
+        ctx.strokeStyle = p.col; ctx.fillStyle = p.col;
+        ctx.lineWidth = p.part === 'u' ? 2.6 : 1.7;
+        if (p.part === 'v') ctx.setLineDash([4, 4]);
+        arrow(cx, cy, tpx, tpy, 9);
+        ctx.setLineDash([]);
+        ctx.beginPath(); ctx.arc(tpx, tpy, 5.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#0d1018'; ctx.fill();
+        ctx.strokeStyle = p.col; ctx.lineWidth = 2.2; ctx.stroke();
+        ctx.fillStyle = p.col; ctx.font = 'bold 12px -apple-system, "PingFang SC", sans-serif';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+        ctx.fillText(p.name, tpx + 10 * (vec.x >= 0 ? 1 : -1) - (vec.x >= 0 ? 0 : 24), tpy - 8);
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '12px -apple-system, "PingFang SC", sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillText('复特征向量 w = u + iv：实部 u 实线、虚部 v 虚线（可拖）；青/橙椭圆 = 单位圆经实部 B / 虚部 C 的像（A·v = B·v + i·C·v）', cx, 14);
+    }
+  } else if (S.complexMode){
+    if (S.cu && S.cv){
+      const items = [ { v: S.cu, col: '#ff5d8f', name: 'u' }, { v: S.cv, col: '#9d6bff', name: 'v' } ];
+      for (const p of items){
+        if (S.showAv){
+          const Ax = S.a * p.v.x + S.b * p.v.y, Ay = S.c * p.v.x + S.d * p.v.y;
+          let q = { x: Ax, y: Ay };
+          const L = Math.hypot(q.x, q.y);
+          const clamped = L > cl;
+          if (clamped) q = { x: q.x / L * cl, y: q.y / L * cl };
+          ctx.strokeStyle = p.col; ctx.fillStyle = p.col; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.4;
+          ctx.setLineDash([6, 5]); arrow(cx, cy, cx + q.x * u, cy - q.y * u, 7);
+          ctx.setLineDash([]); ctx.globalAlpha = 1;
+          if (clamped){ ctx.beginPath(); ctx.arc(cx + q.x * u, cy - q.y * u, 3, 0, Math.PI * 2); ctx.fill(); }
+        }
+        const tpx = cx + p.v.x * u, tpy = cy - p.v.y * u;
+        ctx.strokeStyle = p.col; ctx.fillStyle = p.col; ctx.lineWidth = 2.6;
+        arrow(cx, cy, tpx, tpy, 10);
+        ctx.beginPath(); ctx.arc(tpx, tpy, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#0d1018'; ctx.fill();
+        ctx.strokeStyle = p.col; ctx.lineWidth = 2.4; ctx.stroke();
+        ctx.fillStyle = p.col; ctx.font = 'bold 13px -apple-system, "PingFang SC", sans-serif';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+        ctx.fillText(p.name, tpx + 12 * (p.v.x >= 0 ? 1 : -1) - (p.v.x >= 0 ? 0 : 26), tpy - 10);
+      }
+    }
+  } else if (!S.complex && S.v1){
+    const items = [ { v: S.v1, col: '#ff5d5d', name: 'v₁' }, { v: S.v2, col: '#4da3ff', name: 'v₂' } ];
+    for (const p of items){
+      if (!p.v) continue;
+      const arbitrary = (p.name === 'v₂' && S.hasV2 === 'arbitrary');
+      const skip = (p.name === 'v₂' && S.hasV2 === false);
+      if (skip) continue;
+      if (S.showAv){
+        const Ax = S.a * p.v.x + S.b * p.v.y, Ay = S.c * p.v.x + S.d * p.v.y;
+        let q = { x: Ax, y: Ay };
+        const L = Math.hypot(q.x, q.y);
+        const clamped = L > cl;
+        if (clamped) q = { x: q.x / L * cl, y: q.y / L * cl };
+        ctx.strokeStyle = p.col; ctx.fillStyle = p.col; ctx.globalAlpha = 0.5; ctx.lineWidth = 1.4;
+        ctx.setLineDash([6, 5]); arrow(cx, cy, cx + q.x * u, cy - q.y * u, 7);
+        ctx.setLineDash([]); ctx.globalAlpha = 1;
+        if (clamped){ ctx.beginPath(); ctx.arc(cx + q.x * u, cy - q.y * u, 3, 0, Math.PI * 2); ctx.fill(); }
+      }
+      const tpx = cx + p.v.x * u, tpy = cy - p.v.y * u;   // 单位长度：尖端在单位圆上
+      ctx.strokeStyle = p.col; ctx.fillStyle = p.col; ctx.lineWidth = 2.6;
+      if (arbitrary) ctx.setLineDash([4, 4]);
+      arrow(cx, cy, tpx, tpy, 10);
+      ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(tpx, tpy, 6, 0, Math.PI * 2);
+      ctx.fillStyle = '#0d1018'; ctx.fill();
+      ctx.strokeStyle = p.col; ctx.lineWidth = 2.4; ctx.stroke();
+      ctx.fillStyle = p.col; ctx.font = 'bold 13px -apple-system, "PingFang SC", sans-serif';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+      ctx.fillText(arbitrary ? '任意' : p.name, tpx + 12 * (p.v.x >= 0 ? 1 : -1) - (p.v.x >= 0 ? 0 : 34), tpy - 10);
+    }
+  } else if (!S.complexMode && !S.cmMode && S.complex){
+    ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '14px -apple-system, "PingFang SC", sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('特征值为复数 — 无实特征向量（可开启"复特征值模式"）', cx, cy);
+  }
+
+  // 原点
+  ctx.beginPath(); ctx.arc(cx, cy, 3.5, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
+}
+
+function drawEigLine(){
+  const W = ELW, H = ELH, padL = 34, padR = 34, y = H / 2;
+  const span = W - padL - padR, upx = span / (2 * RANGE);
+  lctx.clearRect(0, 0, W, H);
+  lctx.strokeStyle = 'rgba(255,255,255,0.4)'; lctx.lineWidth = 1.4;
+  lctx.beginPath(); lctx.moveTo(padL, y); lctx.lineTo(W - padR, y); lctx.stroke();
+  lctx.fillStyle = 'rgba(255,255,255,0.5)'; lctx.font = '10px ui-monospace, Menlo, monospace';
+  lctx.textAlign = 'center'; lctx.textBaseline = 'top';
+  for (let v = -RANGE; v <= RANGE; v++){
+    const x = padL + (v + RANGE) * upx;
+    lctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    lctx.beginPath(); lctx.moveTo(x, y - 4); lctx.lineTo(x, y + 4); lctx.stroke();
+    lctx.fillText(String(v), x, y + 8);
+  }
+  if (S.complex){
+    lctx.fillStyle = 'rgba(255,255,255,0.4)'; lctx.font = '12px -apple-system, "PingFang SC", sans-serif';
+    lctx.textBaseline = 'middle';
+    lctx.fillText('特征值为复数，不在实轴上显示', W / 2, y - 24);
+    return;
+  }
+  const same = Math.abs(S.l1 - S.l2) < 1e-9;
+  const dots = [
+    { l: S.l1, col: '#ff5d5d', name: 'λ₁', below: false },
+    { l: S.l2, col: '#4da3ff', name: 'λ₂', below: same },
+  ];
+  for (const d of dots){
+    if (!isFinite(d.l)) continue;
+    const x = clamp(padL + (d.l + RANGE) * upx, padL, W - padR);
+    const dy = d.below ? 4 : 0;
+    lctx.beginPath(); lctx.arc(x, y + dy, 9, 0, Math.PI * 2);
+    lctx.fillStyle = d.col; lctx.fill();
+    lctx.strokeStyle = '#0d1018'; lctx.lineWidth = 2.5; lctx.stroke();
+    lctx.fillStyle = d.col; lctx.font = 'bold 12px -apple-system, "PingFang SC", sans-serif';
+    lctx.textAlign = 'center';
+    lctx.textBaseline = d.below ? 'top' : 'bottom';
+    lctx.fillText(`${d.name}=${fmt(d.l)}`, x, d.below ? y + 16 : y - 12);
+  }
+}
+
+function drawCPlane(){
+  const W = CPW, H = CPH, cx = W / 2, cy = H / 2, upx = 40;
+  cctx.clearRect(0, 0, W, H);
+  // 轴
+  cctx.strokeStyle = 'rgba(255,255,255,0.4)'; cctx.lineWidth = 1.4;
+  cctx.beginPath(); cctx.moveTo(0, cy); cctx.lineTo(W, cy); cctx.stroke();
+  cctx.beginPath(); cctx.moveTo(cx, 0); cctx.lineTo(cx, H); cctx.stroke();
+  // 刻度
+  cctx.fillStyle = 'rgba(255,255,255,0.5)'; cctx.font = '10px ui-monospace, Menlo, monospace';
+  cctx.textAlign = 'center'; cctx.textBaseline = 'top';
+  for (let v = -6; v <= 6; v += 2){
+    const x = cx + v * upx;
+    cctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    cctx.beginPath(); cctx.moveTo(x, cy - 4); cctx.lineTo(x, cy + 4); cctx.stroke();
+    if (v) cctx.fillText(String(v), x, cy + 8);
+  }
+  cctx.textAlign = 'left'; cctx.textBaseline = 'middle';
+  for (let v = -3; v <= 3; v++){
+    if (!v) continue;
+    const y = cy - v * upx;
+    cctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    cctx.beginPath(); cctx.moveTo(cx - 4, y); cctx.lineTo(cx + 4, y); cctx.stroke();
+    cctx.fillText(String(v) + 'i', cx + 6, y);
+  }
+  if (!S.complexMode && !S.cmMode) return;
+
+  if (S.cmMode){
+    if (!S.cmL1) return;
+    // 单位圆（|z|=1 参考）
+    cctx.strokeStyle = 'rgba(255,255,255,0.15)'; cctx.lineWidth = 1; cctx.setLineDash([4, 4]);
+    cctx.beginPath(); cctx.arc(cx, cy, upx, 0, Math.PI * 2); cctx.stroke();
+    cctx.setLineDash([]);
+    // 特征向量分量可视化：每个 w ∈ ℂ² 的两个分量 w₁、w₂ 画为复平面箭头
+    // λ₁ 的 w₁ 用红色系（分量 1 实线、分量 2 虚线），λ₂ 的 w₂ 用蓝色系
+    const evs = [
+      { w: S.cmW1, col: '#ff5d5d' },
+      { w: S.cmW2, col: '#4da3ff' },
+    ];
+    for (const e of evs){
+      const comps = [ { c: e.w.c1, solid: true }, { c: e.w.c2, solid: false } ];
+      for (const comp of comps){
+        const rr = Math.hypot(comp.c.re, comp.c.im);
+        if (rr < 0.02) continue;
+        const x = cx + comp.c.re * upx, y = cy - comp.c.im * upx;
+        cctx.strokeStyle = e.col; cctx.fillStyle = e.col;
+        cctx.lineWidth = comp.solid ? 2.2 : 1.4;
+        if (!comp.solid) cctx.setLineDash([4, 3]);
+        cctx.beginPath(); cctx.moveTo(cx, cy); cctx.lineTo(x, y); cctx.stroke();
+        cctx.setLineDash([]);
+        const ang = Math.atan2(y - cy, x - cx);
+        cctx.beginPath(); cctx.moveTo(x, y);
+        cctx.lineTo(x - 8 * Math.cos(ang - 0.4), y - 8 * Math.sin(ang - 0.4));
+        cctx.lineTo(x - 8 * Math.cos(ang + 0.4), y - 8 * Math.sin(ang + 0.4));
+        cctx.closePath(); cctx.fill();
+        cctx.beginPath(); cctx.arc(x, y, 3.5, 0, Math.PI * 2);
+        cctx.fillStyle = '#0d1018'; cctx.fill();
+        cctx.strokeStyle = e.col; cctx.lineWidth = 1.6; cctx.stroke();
+      }
+    }
+    // 特征值圆点
+    const dots = [
+      { re: S.cmL1.re, im: S.cmL1.im, col: '#ff5d5d', name: 'λ₁' },
+      { re: S.cmL2.re, im: S.cmL2.im, col: '#4da3ff', name: 'λ₂' },
+    ];
+    for (const d of dots){
+      const x = clamp(cx + d.re * upx, 12, W - 12), y = cy - d.im * upx;
+      cctx.beginPath(); cctx.arc(x, y, 9, 0, Math.PI * 2);
+      cctx.fillStyle = d.col; cctx.fill();
+      cctx.strokeStyle = '#0d1018'; cctx.lineWidth = 2.5; cctx.stroke();
+      cctx.fillStyle = d.col; cctx.font = 'bold 12px -apple-system, "PingFang SC", sans-serif';
+      cctx.textAlign = 'center';
+      cctx.textBaseline = d.im >= 0 ? 'bottom' : 'top';
+      cctx.fillText(`${d.name}=${fmtC(d.re, d.im)}`, x, d.im >= 0 ? y - 12 : y + 16);
+    }
+    cctx.fillStyle = 'rgba(255,255,255,0.45)'; cctx.font = '11px -apple-system, "PingFang SC", sans-serif';
+    cctx.textAlign = 'center'; cctx.textBaseline = 'bottom';
+    cctx.fillText('红 λ₁ / 蓝 λ₂：实线 = 分量 w₁，虚线 = 分量 w₂（可拖圆点）', cx, H - 6);
+    return;
+  }
+
+  // 复特征值模式（实矩阵）：共轭圆点
+  const r = Math.hypot(S.cx, S.cy) * upx;
+  if (S.ctype === 'complex' && r > 0 && r < W * 0.7){
+    cctx.strokeStyle = 'rgba(255,255,255,0.15)'; cctx.lineWidth = 1; cctx.setLineDash([4, 4]);
+    cctx.beginPath(); cctx.arc(cx, cy, r, 0, Math.PI * 2); cctx.stroke();
+    cctx.setLineDash([]);
+  }
+  const dots = S.ctype === 'complex'
+    ? [ { re: S.cx, im:  S.cy, col: '#ff5d5d', name: 'λ₁' }, { re: S.cx, im: -S.cy, col: '#4da3ff', name: 'λ₂' } ]
+    : [ { re: S.cl1, im: 0, col: '#ff5d5d', name: 'λ₁' }, { re: S.cl2, im: 0, col: '#4da3ff', name: 'λ₂' } ];
+  for (const d of dots){
+    const x = clamp(cx + d.re * upx, 12, W - 12), y = cy - d.im * upx;
+    cctx.beginPath(); cctx.arc(x, y, 9, 0, Math.PI * 2);
+    cctx.fillStyle = d.col; cctx.fill();
+    cctx.strokeStyle = '#0d1018'; cctx.lineWidth = 2.5; cctx.stroke();
+    cctx.fillStyle = d.col; cctx.font = 'bold 12px -apple-system, "PingFang SC", sans-serif';
+    cctx.textAlign = 'center';
+    const lab = S.ctype === 'complex' ? `${d.name}=${fmtC(d.re, d.im)}` : `${d.name}=${fmt(d.re)}`;
+    cctx.textBaseline = d.im >= 0 ? 'bottom' : 'top';
+    cctx.fillText(lab, x, d.im >= 0 ? y - 12 : y + 16);
+  }
+}
+
+function drawAll(){ updateReadouts(); drawPlane(); (S.complexMode || S.cmMode) ? drawCPlane() : drawEigLine(); }
+
+/* ---------- 交互：平面拖动 ---------- */
+
+function toMath(e){
+  const r = cv.getBoundingClientRect();
+  return {
+    x: ((e.clientX - r.left) / r.width - 0.5) * PLANE / S.zoom,
+    y: (0.5 - (e.clientY - r.top) / r.height) * PLANE / S.zoom,
+  };
+}
+function segDist(m, v){
+  const L2 = v.x * v.x + v.y * v.y;
+  if (L2 < 1e-12) return Math.hypot(m.x, m.y);
+  const t = clamp((m.x * v.x + m.y * v.y) / L2, 0, 1);
+  return Math.hypot(m.x - v.x * t, m.y - v.y * t);
+}
+// 保持两向量夹角 ≥ asin(MIN_SEP)（约 1.1°，可拉得很近）
+function clampSep(u, ref){
+  const s = u.x * ref.y - u.y * ref.x;
+  if (Math.abs(s) >= MIN_SEP) return u;
+  const a = Math.atan2(ref.y, ref.x) + Math.asin(MIN_SEP) * (s >= 0 ? 1 : -1);
+  return { x: Math.cos(a), y: Math.sin(a) };
+}
+
+let drag = null;
+cv.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  const m = toMath(e);
+  const hits = [];
+  if (S.cmMode){
+    if (!S.cmW1 || !S.cmW2) return;
+    const parts = [
+      { t: 'u₁', v: { x: S.cmW1.c1.re, y: S.cmW1.c2.re } },
+      { t: 'v₁', v: { x: S.cmW1.c1.im, y: S.cmW1.c2.im } },
+      { t: 'u₂', v: { x: S.cmW2.c1.re, y: S.cmW2.c2.re } },
+      { t: 'v₂', v: { x: S.cmW2.c1.im, y: S.cmW2.c2.im } },
+    ];
+    for (const p of parts){
+      if (Math.hypot(p.v.x, p.v.y) < 1e-9) continue;
+      hits.push({ t: p.t, d: segDist(m, p.v) });
+    }
+  } else if (S.complexMode){
+    if (S.cu) hits.push({ t: 'u', d: segDist(m, S.cu) });
+    if (S.cv) hits.push({ t: 'v', d: segDist(m, S.cv) });
+  } else {
+    if (S.complex || !S.v1) return;
+    if (S.v1) hits.push({ t: 'v1', d: segDist(m, S.v1) });
+    if (S.v2 && S.hasV2 !== false) hits.push({ t: 'v2', d: segDist(m, S.v2) });
+  }
+  if (!hits.length) return;
+  hits.sort((a, b) => a.d - b.d);
+  if (hits[0].d > 24 / S.zoom) return;
+  drag = { t: hits[0].t };
+  try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+  cv.style.cursor = 'grabbing';
+});
+cv.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const m = toMath(e);
+  const dist = Math.hypot(m.x, m.y);
+  if (dist < 0.12) return;
+
+  if (S.cmMode){
+    const u = { x: m.x / dist, y: m.y / dist };
+    const len = clamp(dist, CU_LEN_MIN, CU_LEN_MAX);
+    const v = { x: u.x * len, y: u.y * len };
+    const isW1 = drag.t.endsWith('₁');
+    const part = drag.t.startsWith('u') ? 'u' : 'v';
+    const w = isW1 ? S.cmW1 : S.cmW2;
+    if (part === 'u'){ w.c1.re = v.x; w.c2.re = v.y; } else { w.c1.im = v.x; w.c2.im = v.y; }
+    if (S.herm){
+      if (isW1) S.cmW2 = cmUnitaryComp(S.cmW1);
+      else S.cmW1 = cmUnitaryComp(S.cmW2);
+    }
+    rebuildComplexMat();
+    return;
+  }
+
+  if (S.complexMode){
+    // 复特征值模式：u、v 恒为单位向量（终点在单位圆上），拖动只改方向
+    let u = { x: m.x / dist, y: m.y / dist };
+    const ref = drag.t === 'u' ? S.cv : S.cu;
+    if (ref) u = clampSep(u, norm(ref));
+    if (drag.t === 'u') S.cu = u;
+    else                S.cv = u;
+    rebuildComplexMatrix();
+    return;
+  }
+
+  // 实模式：单位向量，方向随指针（长度恒为 1）
+  let u = { x: m.x / dist, y: m.y / dist };
+  if (S.symLock){
+    const other = drag.t === 'v1' ? S.v2 : S.v1;
+    const s = u.x * other.y - u.y * other.x;
+    const perpU = s >= 0 ? { x: -u.y, y: u.x } : { x: u.y, y: -u.x };
+    if (drag.t === 'v1'){ S.v1 = u; S.v2 = perpU; }
+    else                { S.v2 = u; S.v1 = perpU; }
+    if (S.hasV2 === false || S.hasV2 === 'arbitrary') S.hasV2 = true;
+    rebuildRealMatrix();
+    return;
+  }
+  const ref = drag.t === 'v1' ? S.v2 : S.v1;
+  if (ref) u = clampSep(u, norm(ref));
+  if (drag.t === 'v1'){ S.v1 = u; if (S.hasV2 === false) S.v2 = perp(S.v1); }
+  else                { S.v2 = u; if (S.hasV2 === 'arbitrary') S.hasV2 = true; }
+  rebuildRealMatrix();
+});
+function endDrag(){ drag = null; cv.style.cursor = 'crosshair'; }
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+
+/* ---------- 交互：实模式特征值数轴 ---------- */
+
+function toVal(e){
+  const r = lc.getBoundingClientRect();
+  const span = ELW - 68, upx = span / (2 * RANGE);
+  const x = ((e.clientX - r.left) / r.width) * ELW;
+  return clamp((x - 34) / upx - RANGE, -RANGE, RANGE);
+}
+function dotX(l){
+  const span = ELW - 68, upx = span / (2 * RANGE);
+  return clamp(34 + (l + RANGE) * upx, 34, ELW - 34);
+}
+
+let ldrag = null;
+lc.addEventListener('pointerdown', e => {
+  if (S.complexMode || S.cmMode) return;
+  e.preventDefault();
+  const r = lc.getBoundingClientRect();
+  const x = ((e.clientX - r.left) / r.width) * ELW;
+  const y = ((e.clientY - r.top) / r.height) * ELH;
+  const cand = [];
+  if (isFinite(S.l1)) cand.push({ t: 'l1', x: dotX(S.l1) });
+  if (isFinite(S.l2)) cand.push({ t: 'l2', x: dotX(S.l2) });
+  let best = null, bd = 1e9;
+  for (const c of cand){
+    const dd = Math.hypot(c.x - x, y - ELH / 2);
+    if (dd < bd){ bd = dd; best = c.t; }
+  }
+  if (!best || bd > 18) return;
+  ldrag = best;
+  try { lc.setPointerCapture(e.pointerId); } catch (err) {}
+});
+lc.addEventListener('pointermove', e => {
+  if (!ldrag) return;
+  const val = toVal(e);
+  if (ldrag === 'l1') S.l1 = val; else S.l2 = val;
+  if (!S.v2 && S.v1) S.v2 = perp(S.v1);
+  rebuildRealMatrix();
+});
+lc.addEventListener('pointerup', () => ldrag = null);
+lc.addEventListener('pointercancel', () => ldrag = null);
+
+/* ---------- 交互：复平面特征值圆点 ---------- */
+
+function toCPos(e){
+  const r = cp.getBoundingClientRect();
+  const x = ((e.clientX - r.left) / r.width) * CPW, y = ((e.clientY - r.top) / r.height) * CPH;
+  return { x: (x - CPW / 2) / 40, y: (CPH / 2 - y) / 40 };
+}
+function dotCPx(re, im){
+  return { x: clamp(CPW / 2 + re * 40, 12, CPW - 12), y: CPH / 2 - im * 40 };
+}
+
+let cdrag = null;
+cp.addEventListener('pointerdown', e => {
+  if (!S.complexMode && !S.cmMode) return;
+  e.preventDefault();
+  const p = toCPos(e);
+  let cand;
+  if (S.cmMode){
+    if (!S.cmL1) return;
+    cand = [
+      { t: 'c1', x: dotCPx(S.cmL1.re, S.cmL1.im).x, y: dotCPx(S.cmL1.re, S.cmL1.im).y },
+      { t: 'c2', x: dotCPx(S.cmL2.re, S.cmL2.im).x, y: dotCPx(S.cmL2.re, S.cmL2.im).y },
+    ];
+  } else if (S.ctype === 'complex'){
+    cand = [
+      { t: 'up', x: dotCPx(S.cx,  S.cy).x, y: dotCPx(S.cx,  S.cy).y },
+      { t: 'dn', x: dotCPx(S.cx, -S.cy).x, y: dotCPx(S.cx, -S.cy).y },
+    ];
+  } else {
+    cand = [
+      { t: 'l1', x: dotCPx(S.cl1, 0).x, y: dotCPx(S.cl1, 0).y },
+      { t: 'l2', x: dotCPx(S.cl2, 0).x, y: dotCPx(S.cl2, 0).y },
+    ];
+  }
+  let best = null, bd = 1e9;
+  for (const c of cand){
+    // 指针屏幕坐标 = (p.x*40 + CPW/2, CPH/2 − p.y*40)
+    const dd = Math.hypot(c.x - (p.x * 40 + CPW / 2), c.y - (CPH / 2 - p.y * 40));
+    if (dd < bd){ bd = dd; best = c.t; }
+  }
+  if (!best || bd > 18) return;
+  cdrag = best;
+  try { cp.setPointerCapture(e.pointerId); } catch (err) {}
+});
+cp.addEventListener('pointermove', e => {
+  if (!cdrag) return;
+  const p = toCPos(e);
+  const rx = clamp(p.x, -RANGE, RANGE), iy = clamp(p.y, -IRANGE, IRANGE);
+  if (S.cmMode){
+    const re = rx, im = S.herm ? 0 : iy;
+    if (cdrag === 'c1') S.cmL1 = { re, im }; else S.cmL2 = { re, im };
+    rebuildComplexMat();
+    return;
+  }
+  if (S.ctype === 'complex'){
+    S.cx = rx;
+    S.cy = cdrag === 'up' ? iy : -iy;
+    rebuildComplexMatrix();
+  } else {
+    if (Math.abs(p.y) < 0.08){
+      if (cdrag === 'l1') S.cl1 = rx; else S.cl2 = rx;
+      rebuildComplexMatrix();
+    } else {
+      S.cx = rx;
+      S.cy = cdrag === 'l1' ? Math.abs(iy) : -Math.abs(iy);
+      S.ctype = 'complex';
+      rebuildComplexMatrix();
+    }
+  }
+});
+cp.addEventListener('pointerup', () => cdrag = null);
+cp.addEventListener('pointercancel', () => cdrag = null);
+
+/* ---------- 矩阵输入 ---------- */
+
+let lastEditId = '';
+function setMatrixInputs(){
+  if (S.cmMode){
+    $('m00').value = fmtComplex(S.cmA.a.re, S.cmA.a.im);
+    $('m01').value = fmtComplex(S.cmA.b.re, S.cmA.b.im);
+    $('m10').value = fmtComplex(S.cmA.c.re, S.cmA.c.im);
+    $('m11').value = fmtComplex(S.cmA.d.re, S.cmA.d.im);
+  } else {
+    $('m00').value = fmt(S.a); $('m01').value = fmt(S.b);
+    $('m10').value = fmt(S.c); $('m11').value = fmt(S.d);
+  }
+}
+['m00', 'm01', 'm10', 'm11'].forEach(id => {
+  $(id).addEventListener('input', () => {
+    lastEditId = id;
+    if (S.cmMode){
+      const vals = ['m00', 'm01', 'm10', 'm11'].map(x => parseComplex($(x).value));
+      if (vals.some(v => !v)){
+        $('status').textContent = '请输入有效复数（如 1+2i、-i、3）'; $('status').className = 'status warn';
+        return;
+      }
+      let A = { a: vals[0], b: vals[1], c: vals[2], d: vals[3] };
+      if (S.herm){
+        if (lastEditId === 'm01') A.c = cconj(A.b);
+        else if (lastEditId === 'm10') A.b = cconj(A.c);
+        A.a = { re: A.a.re, im: 0 };
+        A.d = { re: A.d.re, im: 0 };
+      }
+      S.cmA = A;
+      setMatrixInputs();
+      syncComplexMat();
+      return;
+    }
+    let a = parseFloat($('m00').value), b = parseFloat($('m01').value),
+        c = parseFloat($('m10').value), d = parseFloat($('m11').value);
+    if (![a, b, c, d].every(isFinite)){
+      $('status').textContent = '请输入有效数字'; $('status').className = 'status warn';
+      return;
+    }
+    if (S.symLock){
+      if (lastEditId === 'm01'){ c = b; $('m10').value = fmt(b); }
+      else if (lastEditId === 'm10'){ b = c; $('m01').value = fmt(c); }
+      else { b = c = (b + c) / 2; $('m01').value = fmt(b); $('m10').value = fmt(b); }
+    }
+    S.a = a; S.b = b; S.c = c; S.d = d;
+    syncAll();
+  });
+});
+
+/* ---------- 手动输入特征值 ---------- */
+
+function commitLam(which){
+  const el = $(which === '1' ? 'lam1In' : 'lam2In');
+  if (S.cmMode){
+    const z = parseComplex(el.value);
+    if (!z) return;
+    const l = S.herm ? { re: z.re, im: 0 } : z;
+    if (which === '1') S.cmL1 = l; else S.cmL2 = l;
+    rebuildComplexMat();
+    return;
+  }
+  if (S.complexMode){
+    const v = parseFloat(el.value);
+    if (!isFinite(v)) return;
+    if (S.ctype === 'complex'){
+      if (which === '1') S.cx = v; else S.cy = v;
+    } else {
+      if (which === '1') S.cl1 = v; else S.cl2 = v;
+    }
+    rebuildComplexMatrix();
+    return;
+  }
+  const v = parseFloat(el.value);
+  if (!isFinite(v) || S.complex) return;
+  if (which === '1') S.l1 = v; else S.l2 = v;
+  rebuildRealMatrix();
+}
+$('lam1In').addEventListener('change', () => commitLam('1'));
+$('lam2In').addEventListener('change', () => commitLam('2'));
+$('lam1In').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
+$('lam2In').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
+
+/* ---------- 显示比例 ---------- */
+
+function applyZoom(z){
+  z = clamp(Math.round(z) || 64, ZOOM_MIN, ZOOM_MAX);
+  S.zoom = z;
+  $('zoomRange').value = z;
+  $('zoomNum').value = z;
+  drawPlane();
+}
+$('zoomRange').addEventListener('input', e => {
+  S.zoom = +e.target.value;
+  $('zoomNum').value = S.zoom;
+  drawPlane();
+});
+$('zoomNum').addEventListener('input', e => {
+  const z = parseFloat(e.target.value);
+  if (isFinite(z)){
+    S.zoom = clamp(z, ZOOM_MIN, ZOOM_MAX);
+    $('zoomRange').value = S.zoom;
+    drawPlane();
+  }
+});
+$('zoomNum').addEventListener('change', e => applyZoom(parseFloat(e.target.value)));
+
+/* ---------- 控件 ---------- */
+
+function resetState(){
+  Object.assign(S, {
+    a: 2, b: 1, c: 1, d: 2,
+    v1: { x: Math.SQRT1_2, y:  Math.SQRT1_2 },
+    v2: { x: Math.SQRT1_2, y: -Math.SQRT1_2 },
+    cmA: { a: { re: 1, im: 2 }, b: { re: 1, im: 0 }, c: { re: -1, im: 0 }, d: { re: 1, im: -2 } },
+  });
+  S.symLock = false; S.complexMode = false; S.cmMode = false; S.herm = false;
+  S.zoom = 64;
+  $('zoomRange').value = 64; $('zoomNum').value = 64;
+  setModeUI();
+  setMatrixInputs(); syncAll();
+}
+$('resetBtn').addEventListener('click', resetState);
+$('randBtn').addEventListener('click', () => {
+  const r = () => Math.round((Math.random() * 6 - 3) * 1000) / 1000;
+  if (S.cmMode){
+    let A;
+    if (S.herm){
+      A = {
+        a: { re: r(), im: 0 }, b: { re: r(), im: r() },
+        c: { re: 0, im: 0 }, d: { re: r(), im: 0 },
+      };
+      A.c = cconj(A.b);
+    } else {
+      A = {
+        a: { re: r(), im: r() }, b: { re: r(), im: r() },
+        c: { re: r(), im: r() }, d: { re: r(), im: r() },
+      };
+    }
+    S.cmA = A;
+    setMatrixInputs(); syncComplexMat();
+    return;
+  }
+  let b = r(), c = r();
+  if (S.symLock){ b = c = (b + c) / 2; }
+  Object.assign(S, { a: r(), b, c, d: r() });
+  setMatrixInputs(); syncAll();
+});
+$('symBtn').addEventListener('click', () => {
+  S.symLock = !S.symLock;
+  if (S.symLock){ S.complexMode = false; S.cmMode = false; S.herm = false; }
+  if (S.symLock){
+    const bb = (S.b + S.c) / 2; S.b = bb; S.c = bb;
+  }
+  setModeUI();
+  setMatrixInputs(); syncAll();
+});
+$('cxBtn').addEventListener('click', () => {
+  S.complexMode = !S.complexMode;
+  if (S.complexMode){ S.symLock = false; S.cmMode = false; S.herm = false; }
+  setModeUI();
+  syncAll();
+});
+$('cmBtn').addEventListener('click', () => {
+  S.cmMode = !S.cmMode;
+  if (S.cmMode){
+    S.symLock = false; S.complexMode = false; S.herm = false;
+    // 以当前实矩阵为起点（虚部 0）
+    S.cmA = {
+      a: { re: S.a, im: 0 }, b: { re: S.b, im: 0 },
+      c: { re: S.c, im: 0 }, d: { re: S.d, im: 0 },
+    };
+  }
+  setModeUI();
+  setMatrixInputs(); syncAll();
+});
+$('hermBtn').addEventListener('click', () => {
+  if (!S.cmMode) return;
+  S.herm = !S.herm;
+  if (S.herm){
+    if (S.cmW1) S.cmW2 = cmUnitaryComp(S.cmW1);
+    S.cmL1 = { re: S.cmL1.re, im: 0 };
+    S.cmL2 = { re: S.cmL2.re, im: 0 };
+    rebuildComplexMat();
+  } else {
+    syncComplexMat();
+  }
+  setModeUI();
+});
+$('tgGrid').addEventListener('change', e => { S.showGrid = e.target.checked; drawPlane(); });
+$('tgShape').addEventListener('change', e => { S.showShape = e.target.checked; drawPlane(); });
+$('tgBasis').addEventListener('change', e => { S.showBasis = e.target.checked; drawPlane(); });
+$('tgAv').addEventListener('change', e => { S.showAv = e.target.checked; drawPlane(); });
+
+/* ---------- 点击输入框自动全选文本 ---------- */
+['m00', 'm01', 'm10', 'm11', 'lam1In', 'lam2In', 'zoomNum'].forEach(id => {
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener('focus', () => el.select());
+  el.addEventListener('mouseup', () => el.select());
+});
+
+/* ---------- 初始化 ---------- */
+setModeUI();
+setMatrixInputs();
+syncAll();
+</script>
+</body>
+</html>
