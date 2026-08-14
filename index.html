@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<!-- Warframe 小助手 · 单文件版 (方案2) · 生成于 2026-08-14 08:22:55 UTC · 由 build/make_plan2.py 自动生成，请勿手工编辑 -->
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warframe 小助手</title>
+<style>
+/* Warframe 小助手 — 深色主题 */
+:root {
+  --bg: #0b0e14;
+  --panel: #141926;
+  --panel2: #1a2133;
+  --border: #2a3350;
+  --text: #d7e1f0;
+  --muted: #7d8aa5;
+  --gold: #d4af37;
+  --cyan: #58a6ff;
+  --green: #3fb950;
+  --red: #f85149;
+  --orange: #d29922;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: radial-gradient(1200px 600px at 20% -10%, #16203a 0%, var(--bg) 55%);
+  color: var(--text);
+  font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+header {
+  padding: 14px 22px;
+  background: rgba(10, 13, 20, 0.85);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 10;
+  backdrop-filter: blur(6px);
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand .logo { font-size: 22px; }
+.brand h1 { margin: 0; font-size: 20px; letter-spacing: 1px; color: var(--gold); }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 10px; }
+.controls label { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+
+.statusbar {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--muted);
+  display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center;
+}
+.statusbar .badge {
+  display: inline-block; padding: 1px 10px; border-radius: 20px;
+  font-size: 12px; border: 1px solid;
+}
+.badge.running { color: var(--green); border-color: var(--green); }
+.badge.stopped { color: var(--muted); border-color: var(--border); }
+.badge.error { color: var(--red); border-color: var(--red); }
+.err-text { color: var(--red); }
+
+main { max-width: 1180px; margin: 0 auto; padding: 18px 22px 60px; }
+.card {
+  background: linear-gradient(180deg, var(--panel2), var(--panel));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+.card h2 { margin: 0 0 12px; font-size: 16px; color: var(--gold); }
+.card h3 { margin: 14px 0 8px; font-size: 15px; }
+.muted { color: var(--muted); font-weight: normal; font-size: 12px; }
+.hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+
+fieldset { border: 1px solid var(--border); border-radius: 8px; margin: 0; min-width: 0; }
+legend { color: var(--cyan); font-size: 13px; padding: 0 6px; }
+fieldset .chk { display: block; margin: 6px 2px; }
+.target-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+
+.chk { cursor: pointer; user-select: none; }
+input[type="checkbox"] { accent-color: var(--gold); width: 15px; height: 15px; vertical-align: -2px; }
+select, input[type="number"], input[type="text"], select option {
+  background: #0d1220; color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 5px 8px; font-size: 13px;
+}
+select:focus, input:focus { outline: 1px solid var(--cyan); }
+input[type="number"] { width: 84px; }
+
+.btn {
+  background: #202a44; color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 14px; cursor: pointer; font-size: 13px;
+}
+.btn:hover { border-color: var(--cyan); }
+.btn.ok { background: #12301d; border-color: var(--green); }
+.btn.ok:hover { background: #1a4528; }
+.btn.danger { background: #3a1418; border-color: var(--red); }
+.btn.danger:hover { background: #4d1a1f; }
+.btn.accent { background: #3d3310; border-color: var(--gold); }
+.btn.accent:hover { background: #55460f; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.cycle-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.cycle-card {
+  background: var(--panel2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 12px;
+}
+.cycle-card .title { color: var(--muted); font-size: 11px; }
+.cycle-card .state { font-size: 14px; font-weight: 600; margin: 2px 0 5px; }
+.state.day { color: var(--gold); }
+.state.night { color: var(--cyan); }
+.state.fass { color: var(--cyan); }
+.state.vome { color: var(--red); }
+.state.warm { color: var(--orange); }
+.state.cold { color: var(--cyan); }
+.state.joy { color: var(--gold); }
+.state.anger { color: var(--red); }
+.state.envy { color: #bc8cff; }
+.state.sorrow { color: var(--cyan); }
+.state.fear { color: #ff7b72; }
+.progress { height: 5px; background: #0d1220; border-radius: 4px; margin: 6px 0 4px; overflow: hidden; }
+.progress .bar { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--cyan), var(--gold)); transition: width 1s linear; }
+.countdown { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 11px; }
+@media (max-width: 860px) {
+  .cycle-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+}
+.unavailable { color: var(--muted); font-size: 12px; }
+
+.arb-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; background: var(--panel2); margin-top: 16px; }
+.arb-card .grid { display: flex; flex-wrap: wrap; gap: 8px 26px; margin-top: 6px; }
+.arb-card .item b { color: var(--cyan); font-weight: 600; }
+.none-arb { color: var(--muted); padding: 6px 0; }
+
+.fissure-section { margin-top: 18px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 500; white-space: nowrap; }
+tbody tr:hover { background: rgba(88, 166, 255, 0.06); }
+
+.chip { display: inline-block; padding: 1px 9px; border-radius: 20px; font-size: 12px; border: 1px solid; white-space: nowrap; }
+.chip.normal { color: var(--muted); border-color: var(--border); }
+.chip.steelPath { color: var(--red); border-color: var(--red); }
+.chip.railjack { color: var(--cyan); border-color: var(--cyan); }
+.chip.tier-Lith { color: #c9d1d9; border-color: #6e7681; }
+.chip.tier-Meso { color: #7ee787; border-color: #238636; }
+.chip.tier-Neo { color: #79c0ff; border-color: #1f6feb; }
+.chip.tier-Axi { color: #ffa657; border-color: #9e6a03; }
+.chip.tier-Requiem { color: #ff7b72; border-color: #da3633; }
+.chip.tier-Omnia { color: #d2a8ff; border-color: #8957e5; }
+
+.watcher-top { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-bottom: 12px; }
+.watcher-top .spacer { flex: 1; }
+
+.rule-builder { border: 1px dashed var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+.rule-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.rule-row select, .rule-row input { min-width: 0; }
+.rule-row .field { width: 150px; }
+.rule-row .op { width: 110px; }
+.rule-row .val { flex: 1; min-width: 160px; }
+.rule-row .del { background: none; border: none; color: var(--red); cursor: pointer; font-size: 16px; padding: 0 4px; }
+.btn-add-rule { margin-top: 4px; }
+.rule-connector-hint { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+
+.alert-banner {
+  border: 1px solid var(--gold); background: rgba(212, 175, 55, 0.12);
+  color: var(--gold); border-radius: 10px; padding: 10px 14px; margin: 10px 0;
+  font-weight: 600; animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+.match-log { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow-y: auto; }
+.match-log li {
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+  display: flex; gap: 12px; align-items: baseline; font-size: 13px;
+}
+.match-log .time { color: var(--muted); white-space: nowrap; font-size: 12px; font-variant-numeric: tabular-nums; }
+.match-log .kind { color: var(--gold); white-space: nowrap; }
+.empty { color: var(--muted); padding: 8px 2px; font-size: 13px; }
+
+.toast {
+  position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
+  background: #1a2133; border: 1px solid var(--cyan); color: var(--text);
+  padding: 10px 20px; border-radius: 10px; z-index: 50;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+}
+.hidden { display: none !important; }
+
+@media (max-width: 720px) {
+  .rule-row .field, .rule-row .op { flex: 1 1 45%; }
+  .rule-row .val { flex: 1 1 100%; }
+}
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="logo">⚔</span>
+    <h1>Warframe 小助手</h1>
+  </div>
+  <div class="controls">
+    <label>平台
+      <select id="platform"></select>
+    </label>
+    <label>扫描间隔
+      <input type="number" id="scanInterval" min="10" max="3600" step="5"> 秒
+    </label>
+    <button id="btnScanNow" class="btn accent">立即扫描</button>
+    <button id="btnScanStart" class="btn ok">开始扫描</button>
+    <button id="btnScanStop" class="btn danger">停止扫描</button>
+  </div>
+  <div id="statusBar" class="statusbar"></div>
+</header>
+
+<main>
+  <!-- 扫描目标设置 -->
+  <section class="card" id="targets">
+    <h2>① 扫描目标设置</h2>
+    <div class="target-grid">
+      <fieldset id="cycleTargets">
+        <legend>星球周期 / 状态（昼夜 · 冷暖 · 心情）</legend>
+      </fieldset>
+      <fieldset>
+        <legend>仲裁任务</legend>
+        <label class="chk"><input type="checkbox" id="arbitration"> 扫描当前仲裁任务（星球 / 节点 / 任务类型）</label>
+      </fieldset>
+      <fieldset id="fissureTargets">
+        <legend>虚空裂缝</legend>
+        <label class="chk"><input type="checkbox" data-cat="normal"> 普通裂缝</label>
+        <label class="chk"><input type="checkbox" data-cat="steelPath"> 钢铁之路裂缝</label>
+        <label class="chk"><input type="checkbox" data-cat="railjack"> 航道星舰裂缝</label>
+        <p class="hint">勾选的裂缝类别会展示在下方结果中，并作为自定义监控的数据范围。</p>
+      </fieldset>
+    </div>
+  </section>
+
+  <!-- 扫描结果 -->
+  <section class="card" id="results">
+    <h2>② 扫描结果 <span id="fetchedAt" class="muted"></span></h2>
+    <div id="cycleCards" class="cycle-grid"></div>
+    <div id="arbitrationCard"></div>
+    <div class="fissure-section">
+      <h3>虚空裂缝 <span id="fissureCount" class="muted"></span></h3>
+      <table id="fissureTable">
+        <thead>
+          <tr>
+            <th>类别</th><th>遗物等级</th><th>任务类型</th>
+            <th>敌人等级</th><th>星球</th><th>节点</th><th>剩余时间</th>
+          </tr>
+        </thead>
+        <tbody id="fissureTbody"></tbody>
+      </table>
+      <p class="hint">敌人等级为按星球 + 任务类型的参考值（钢铁之路 +100 级），仅供参考；剩余时间实时倒计时。</p>
+    </div>
+  </section>
+
+  <!-- 自定义任务监控 -->
+  <section class="card" id="watcher">
+    <h2>③ 自定义任务监控 <span class="muted">（独立间隔，按规则过滤特定任务）</span></h2>
+    <div class="watcher-top">
+      <label class="chk"><input type="checkbox" id="watcherEnabled"> 启用监控</label>
+      <label>间隔
+        <input type="number" id="watcherInterval" min="5" max="3600" step="5"> 秒
+      </label>
+      <label>逻辑
+        <select id="watcherConnector">
+          <option value="and">全部满足 (AND)</option>
+          <option value="or">任一满足 (OR)</option>
+        </select>
+      </label>
+      <label class="chk"><input type="checkbox" id="notifySound"> 声音提醒</label>
+      <label class="chk"><input type="checkbox" id="notifyDesktop"> 桌面通知</label>
+      <span class="spacer"></span>
+      <button id="btnWatcherSave" class="btn ok">保存规则</button>
+      <button id="btnWatcherTest" class="btn accent">测试规则</button>
+    </div>
+    <div id="ruleBuilder" class="rule-builder"></div>
+    <div id="watcherStatus" class="statusbar"></div>
+    <div id="alertBanner" class="alert-banner hidden"></div>
+    <h3>当前命中 <span id="watcherCount" class="muted"></span></h3>
+    <table id="watcherTable">
+      <thead>
+        <tr>
+          <th>种类</th><th>遗物等级</th><th>任务类型</th>
+          <th>敌人等级</th><th>星球</th><th>节点</th><th>剩余时间</th>
+        </tr>
+      </thead>
+      <tbody id="watcherTbody"></tbody>
+    </table>
+    <p class="hint">保存规则后立即抓取一次（间隔过短会自动冷却），之后按设定间隔刷新；每次结果直接覆盖显示，不保留历史。命中新任务时会有声音 / 通知提醒。</p>
+  </section>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+<script>
+"use strict";
+/* ============================================================================
+ * Warframe 小助手 — 方案2（单文件 HTML）客户端核心
+ *
+ * 纯浏览器实现：直接跨域调用 https://api.warframestat.us（该 API 全部端点
+ * 均返回 Access-Control-Allow-Origin: *），无需本地后端。
+ *
+ * ⚠ 同步契约：本文件是后端 warframe_assistant/filters.py 与 scheduler.py 的
+ *   JS 移植。修改后端规则引擎 / 归一化 / 常量时，请同步修改本文件对应函数，
+ *   否则方案2 与方案1/开发版行为会不一致。详见 BUILD.md。
+ * ========================================================================== */
+
+/* ---------------- 常量（对应 constants.py） ---------------- */
+
+const PLATFORMS = [["pc", "PC"], ["ps4", "PS4"], ["xb1", "Xbox One"], ["swi", "Switch"]];
+
+const CYCLE_TARGETS = [
+  ["earth", "地球昼夜", "Earth"],
+  ["cetus", "希图斯昼夜", "Cetus"],
+  ["cambion", "魔胎之境状态", "Cambion Drift"],
+  ["fortuna", "奥布山谷冷暖", "Orb Vallis"],
+  ["duviri", "双衍王境心情", "Duviri"],
+];
+
+// 目标 -> API 端点名（奥布山谷实际端点名为 vallisCycle）
+const CYCLE_ENDPOINTS = {
+  earth: "earthCycle", cetus: "cetusCycle", cambion: "cambionCycle",
+  fortuna: "vallisCycle", duviri: "duviriCycle",
+};
+
+// 双衍王境心情 -> 中文（游戏内简中；官方 5 种心情）
+const DUVIRI_MOOD_CN = {
+  joy: "喜悦", anger: "愤怒", envy: "嫉妒", sorrow: "悲伤", fear: "恐惧",
+};
+
+// 各周期目标的“下一状态”轮换映射表（推理用，对应 constants.py NEXT_STATE）。
+// 双衍王境没有可靠轮换规则，不在此表内，保留原显示方式。
+const NEXT_STATE = {
+  earth: { day: "night", night: "day" },
+  cetus: { day: "night", night: "day" },
+  cambion: { fass: "vome", vome: "fass" },
+  fortuna: { warm: "cold", cold: "warm" },
+};
+
+// 各周期目标单阶段时长（秒），用于推理时估算下一状态剩余时间（对应 constants.py）
+const CYCLE_PHASE_SECONDS = {
+  earth: 4 * 3600, cetus: 50 * 60, cambion: 50 * 60, fortuna: 400,
+};
+
+const MISSION_TYPE_CN = {
+  "Exterminate": "歼灭", "Extermination": "歼灭", "Capture": "捕获", "Mobile Defense": "移动防御",
+  "Spy": "间谍", "Sabotage": "破坏", "Survival": "生存", "Rescue": "救援",
+  "Defense": "防御", "Disruption": "中断", "Interception": "拦截",
+  "Void Flood": "虚空洪流", "Void Cascade": "虚空覆涌", "Void Armageddon": "虚空决战",
+  "Conjunction Survival": "联结生存", "Excavation": "挖掘", "Assault": "强袭",
+  "Defection": "叛逃", "Hijack": "劫持", "Infested Salvage": "Infested 资源回收",
+  "Skirmish": "前哨战", "Volatile": "爆发", "Orphix": "奥影",
+  "Ascension": "扬升", "Alchemy": "元素转换", "Netracell": "衰退室",
+  "Unknown": "未知", "Void Sabotage": "虚空破坏", "Void Exterminate": "虚空歼灭",
+  "Void Capture": "虚空捕获",
+};
+
+const PLANET_CN = {
+  "Earth": "地球", "Venus": "金星", "Mercury": "水星", "Mars": "火星",
+  "Phobos": "火卫一", "Deimos": "魔胎之境", "Ceres": "谷神星", "Jupiter": "木星",
+  "Europa": "欧罗巴", "Saturn": "土星", "Uranus": "天王星", "Neptune": "海王星",
+  "Pluto": "冥王星", "Sedna": "赛德娜", "Eris": "厄里斯", "Lua": "月球",
+  "Void": "虚空", "Kuva Fortress": "赤毒要塞", "Zariman": "扎里曼",
+  "Duviri": "双衍王境", "Cambion Drift": "魔胎之境", "Orb Vallis": "奥布山谷",
+  "Cetus": "希图斯", "Railjack": "航道星舰", "Plains of Eidolon": "夜灵平野",
+};
+
+const PLANET_LEVELS = {
+  "Earth": [1, 5], "Venus": [3, 10], "Mercury": [6, 11], "Mars": [8, 15],
+  "Phobos": [10, 17], "Deimos": [12, 21], "Ceres": [14, 23], "Jupiter": [15, 26],
+  "Europa": [18, 31], "Saturn": [20, 33], "Uranus": [22, 38], "Neptune": [24, 42],
+  "Pluto": [28, 46], "Sedna": [30, 55], "Eris": [34, 60], "Lua": [30, 45],
+  "Void": [30, 45], "Kuva Fortress": [35, 55], "Zariman": [50, 75],
+  "Duviri": [10, 55], "Cambion Drift": [12, 30], "Orb Vallis": [10, 30],
+  "Cetus": [10, 40],
+};
+
+const SPECIAL_NODE_LEVELS = { "Mot": [40, 45], "Yuvarium": [60, 65] };
+
+const TIERS = ["Lith", "Meso", "Neo", "Axi", "Requiem", "Omnia"];
+
+// 遗物等级 -> 中文（星际战甲官方简中：前纪/中纪/后纪/古纪/安魂/全能）
+const TIER_CN = {
+  Lith: "前纪", Meso: "中纪", Neo: "后纪", Axi: "古纪",
+  Requiem: "安魂", Omnia: "全能",
+};
+
+const API_BASE = "https://api.warframestat.us";
+
+/* ---------------- 规则引擎元信息（对应 filters.py） ---------------- */
+
+const WATCH_FIELDS = [
+  { key: "kind", label: "任务种类", type: "choice",
+    choices: [["fissure", "虚空裂缝"], ["arbitration", "仲裁任务"]] },
+  { key: "tier", label: "遗物等级", type: "choice",
+    choices: TIERS.map((t) => [t, TIER_CN[t] || t]) },
+  { key: "missionType", label: "任务类型", type: "string" },
+  { key: "node", label: "节点", type: "string" },
+  { key: "planet", label: "星球", type: "string" },
+  { key: "enemyLevelMin", label: "敌人等级下限", type: "number" },
+  { key: "enemyLevelMax", label: "敌人等级上限", type: "number" },
+  { key: "etaMinutes", label: "剩余时间(分钟)", type: "number" },
+  { key: "isHard", label: "钢铁之路", type: "bool" },
+  { key: "isStorm", label: "航道星舰裂缝", type: "bool" },
+];
+
+const FIELD_TYPES = Object.fromEntries(WATCH_FIELDS.map((f) => [f.key, f.type]));
+const FIELD_CHOICES = Object.fromEntries(WATCH_FIELDS.map((f) => [f.key, f.choices || []]));
+
+const OPS = [
+  ["eq", "等于"], ["ne", "不等于"], ["contains", "包含"], ["not_contains", "不包含"],
+  ["gt", "大于"], ["gte", "大于等于"], ["lt", "小于"], ["lte", "小于等于"],
+];
+
+const OPS_BY_TYPE = {
+  string: ["eq", "ne", "contains", "not_contains"],
+  choice: ["eq", "ne"],
+  number: ["eq", "ne", "gt", "gte", "lt", "lte"],
+  bool: ["eq", "ne"],
+};
+
+const META = {
+  platforms: PLATFORMS.map(([key, label]) => ({ key, label })),
+  cycleTargets: CYCLE_TARGETS.map(([key, labelCn, sub]) => ({ key, labelCn, sub })),
+  watchFields: WATCH_FIELDS,
+  ops: OPS.map(([key, label]) => ({ key, label })),
+  opsByType: OPS_BY_TYPE,
+  tiers: TIERS,
+  missionTypes: [...new Set([...Object.keys(MISSION_TYPE_CN), ...Object.values(MISSION_TYPE_CN)])].sort(),
+  planets: [...new Set([...Object.keys(PLANET_CN), ...Object.values(PLANET_CN)])].sort(),
+};
+
+const DEFAULT_CONFIG = {
+  platform: "pc",
+  scanInterval: 60,
+  cycles: ["earth", "cetus", "cambion", "fortuna", "duviri"],
+  arbitration: true,
+  fissures: { normal: true, steelPath: true, railjack: true },
+  watcher: {
+    enabled: false, interval: 30, connector: "and", rules: [],
+    notifySound: true, notifyDesktop: false,
+  },
+};
+
+/* ---------------- 配置持久化（localStorage，失败则仅内存） ---------------- */
+
+const store = (() => {
+  const KEY = "warframe_tool_config_v1";
+  return {
+    load() {
+      try { const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; }
+      catch (e) { return null; }
+    },
+    save(cfg) {
+      try { localStorage.setItem(KEY, JSON.stringify(cfg)); }
+      catch (e) { /* file:// 下可能不可用，忽略 */ }
+    },
+  };
+})();
+
+function deepMerge(base, patch) {
+  const out = Array.isArray(base) ? base.slice() : Object.assign({}, base);
+  for (const k of Object.keys(patch || {})) {
+    const v = patch[k];
+    if (v && typeof v === "object" && !Array.isArray(v) && out[k] && typeof out[k] === "object" && !Array.isArray(out[k])) {
+      out[k] = deepMerge(out[k], v);
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+function sanitize(c) {
+  const cfg = JSON.parse(JSON.stringify(c));
+  cfg.platform = PLATFORMS.some((p) => p[0] === cfg.platform) ? cfg.platform : "pc";
+  let si = parseInt(cfg.scanInterval, 10); if (isNaN(si)) si = 60;
+  cfg.scanInterval = Math.max(10, Math.min(3600, si));
+  cfg.cycles = (cfg.cycles || []).filter((x) => ["earth", "cetus", "cambion", "fortuna", "duviri"].includes(x));
+  cfg.arbitration = !!cfg.arbitration;
+  const f = cfg.fissures || {};
+  cfg.fissures = { normal: !!f.normal, steelPath: !!f.steelPath, railjack: !!f.railjack };
+  const w = cfg.watcher || {};
+  w.enabled = !!w.enabled;
+  let wi = parseInt(w.interval, 10); if (isNaN(wi)) wi = 30;
+  w.interval = Math.max(5, Math.min(3600, wi));
+  w.connector = w.connector === "or" ? "or" : "and";
+  w.rules = (w.rules || []).filter((r) => r && r.field && r.op !== undefined && r.op !== null);
+  w.notifySound = !!w.notifySound;
+  w.notifyDesktop = !!w.notifyDesktop;
+  cfg.watcher = w;
+  return cfg;
+}
+
+let config = sanitize(deepMerge(DEFAULT_CONFIG, store.load() || {}));
+
+function persistConfig() { store.save(config); }
+
+/* ---------------- 运行状态 ---------------- */
+
+const scanState = {
+  running: true, scanning: false, lastRun: null, lastRunTs: null,
+  lastSuccess: null, lastError: null, nextRun: null, results: {},
+};
+
+const watcherState = {
+  lastRun: null, lastRunTs: null, nextRun: null, lastError: null,
+  results: [], resultsAt: null, seen: new Set(), alertSeq: 0, lastAlertSummary: null,
+};
+
+let ruleDraft = null;
+let lastRuleSig = "";
+let lastAlertSeq = 0;
+let audioCtx = null;
+
+/* ---------------- 工具函数 ---------------- */
+
+const $ = (id) => document.getElementById(id);
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]
+  ));
+}
+
+let toastTimer = null;
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.remove("hidden");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add("hidden"), 2400);
+}
+
+function tsFromIso(s) {
+  const t = Date.parse(s);
+  return isNaN(t) ? null : t / 1000;
+}
+function secondsLeft(expiry, nowSec) {
+  const ts = tsFromIso(expiry);
+  return ts == null ? null : Math.max(0, ts - nowSec);
+}
+function minutesLeft(expiry, nowSec) {
+  const s = secondsLeft(expiry, nowSec);
+  return s == null ? null : Math.round((s / 60) * 10) / 10;
+}
+
+function secsLeftNow(expiry) {
+  if (!expiry) return null;
+  const t = Date.parse(expiry);
+  return isNaN(t) ? null : (t - Date.now()) / 1000;
+}
+
+function fmtCountdown(secs) {
+  if (secs == null) return "—";
+  secs = Math.max(0, Math.floor(secs));
+  const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
+  if (h > 0) return `${h}时 ${m}分 ${s}秒`;
+  if (m > 0) return `${m}分 ${s}秒`;
+  return `${s}秒`;
+}
+function fmtLocal(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return isNaN(d) ? iso : d.toLocaleString("zh-CN", { hour12: false });
+}
+function cycleIcon(target, state) {
+  if (target === "duviri") {
+    return { joy: "😄", anger: "😠", envy: "😒", sorrow: "😢", fear: "😨" }[state] || "🎭";
+  }
+  if (target === "cambion") return state === "vome" ? "🔴" : "🔵";
+  if (target === "fortuna") return state === "cold" ? "❄️" : "🔥";
+  return state === "day" ? "☀️" : "🌙";
+}
+
+// 剩余时间：优先用扫描时算好的剩余秒数减去已过时间（免疫本机时钟偏差）
+function remainingSec(item, fetchedAt) {
+  const elapsed = fetchedAt ? (Date.now() - Date.parse(fetchedAt)) / 1000 : 0;
+  if (item.timeLeftSec != null) return Math.max(0, item.timeLeftSec - elapsed);
+  if (item.etaMinutes != null) return Math.max(0, item.etaMinutes * 60 - elapsed);
+  return secsLeftNow(item.expiry);
+}
+function fmtRemaining(secs, flipLabel) {
+  return secs > 0 ? `剩 ${fmtCountdown(secs)}` : flipLabel;
+}
+
+function beep() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const now = audioCtx.currentTime;
+    const play = (freq, start, dur) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination);
+      o.type = "sine"; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.001, start);
+      g.gain.exponentialRampToValueAtTime(0.28, start + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, start + dur);
+      o.start(start); o.stop(start + dur + 0.05);
+    };
+    play(880, now, 0.35);
+    play(1174.66, now + 0.18, 0.3);
+  } catch (e) { /* ignore */ }
+}
+function requestNotifPermission() {
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission();
+  }
+}
+function notifyDesktop(title, body) {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "granted") {
+    try { new Notification(title, { body }); } catch (e) { /* ignore */ }
+  }
+}
+
+/* ---------------- API 调用 ---------------- */
+
+async function fetchJSON(path) {
+  const ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), 12000) : null;
+  try {
+    const res = await fetch(`${API_BASE}/${config.platform}/${path}`, {
+      signal: ctrl ? ctrl.signal : undefined,
+    });
+    if (!res.ok) {
+      const err = new Error(`HTTP ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+    return await res.json();
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function is404(e) { return e && e.status === 404; }
+
+/* ---------------- 归一化（对应 filters.py） ---------------- */
+
+function parsePlanet(node) {
+  node = (node || "").trim();
+  const m = node.match(/\(([^)]+)\)/);
+  if (m) return m[1].trim();
+  if (node.includes(",")) return node.split(",").slice(-1)[0].trim();
+  const names = Object.keys(PLANET_CN).sort((a, b) => b.length - a.length);
+  for (const p of names) if (node.endsWith(p) || node.includes(p)) return p;
+  return "未知";
+}
+
+function referenceLevels(node, planet, isHard) {
+  const short = (node || "").replace(/\s*\(.*\)$/, "").trim();
+  let base = SPECIAL_NODE_LEVELS[short] || PLANET_LEVELS[planet];
+  if (!base) return null;
+  if (isHard) base = [base[0] + 100, base[1] + 100];
+  return base;
+}
+
+function categoryOf(raw) {
+  if (raw.isStorm) return ["railjack", "航道星舰裂缝"];
+  if (raw.isHard) return ["steelPath", "钢铁之路裂缝"];
+  return ["normal", "普通裂缝"];
+}
+
+function cycleStateCn(target, state) {
+  state = state || "";
+  if (target === "cambion") return { fass: "Fass", vome: "Vome" }[state] || state || "未知";
+  if (target === "duviri") return DUVIRI_MOOD_CN[state] || state || "未知";
+  if (target === "fortuna") return { warm: "温暖", cold: "寒冷" }[state] || state || "未知";
+  return { day: "白天", night: "夜晚" }[state] || state || "未知";
+}
+
+function normalizeCycle(raw, target, nowSec) {
+  const exp = raw.expiry;
+  let state = raw.state || "";
+  if (target === "fortuna" && raw.isWarm != null) state = raw.isWarm ? "warm" : "cold";
+  else if (target !== "cambion" && target !== "duviri" && raw.isDay != null) state = raw.isDay ? "day" : "night";
+  return {
+    target, available: true, state, stateCn: cycleStateCn(target, state), isDay: raw.isDay,
+    timeLeftSec: secondsLeft(exp, nowSec), activation: raw.activation, expiry: exp,
+  };
+}
+
+// 状态已结束（时间归零）时，按固定轮换映射表推理下一状态并直接显示。
+// 有规则：切换为下一状态并按单阶段时长估算剩余时间；无规则（duviri）原样返回。
+function inferNextCycle(cycle, target, nowSec) {
+  if (cycle.timeLeftSec !== 0) return cycle;
+  const nxt = (NEXT_STATE[target] || {})[cycle.state || ""];
+  if (!nxt) return cycle;
+  const out = Object.assign({}, cycle);
+  out.state = nxt;
+  out.stateCn = cycleStateCn(target, nxt);
+  out.inferred = true;
+  const expTs = tsFromIso(out.expiry);
+  const dur = CYCLE_PHASE_SECONDS[target];
+  if (expTs != null && dur) {
+    const nextExp = expTs + dur;
+    out.timeLeftSec = Math.max(0, nextExp - nowSec);
+    out.activation = new Date(expTs * 1000).toISOString();
+    out.expiry = new Date(nextExp * 1000).toISOString();
+  }
+  return out;
+}
+
+function normalizeMission(raw, nowSec) {
+  const node = raw.node || "";
+  const planet = parsePlanet(node);
+  const mtype = raw.missionType || raw.type || "";
+  const isHard = !!raw.isHard, isStorm = !!raw.isStorm;
+  const [cat, catCn] = categoryOf(raw);
+  const lv = referenceLevels(node, planet, isHard);
+  return {
+    id: raw.id || "", kind: "fissure", kindCn: "虚空裂缝",
+    category: cat, categoryCn: catCn,
+    tier: raw.tier || "", tierCn: TIER_CN[raw.tier || ""] || raw.tier || "",
+    tierNum: raw.tierNum,
+    missionType: mtype, missionTypeCn: MISSION_TYPE_CN[mtype] || mtype,
+    enemy: raw.enemy || "", node, planet, planetCn: PLANET_CN[planet] || planet,
+    enemyLevelMin: lv ? lv[0] : null, enemyLevelMax: lv ? lv[1] : null,
+    enemyLevelRef: !!lv,
+    etaMinutes: minutesLeft(raw.expiry, nowSec), expiry: raw.expiry,
+    isHard, isStorm,
+  };
+}
+
+function normalizeArbitration(raw, nowSec) {
+  const node = raw.node || "";
+  const mtype = raw.type || "";
+  const placeholder = !!raw.expired || node === "SolNode000" || node === "" || mtype === "Unknown";
+  const planet = parsePlanet(node);
+  return {
+    active: !placeholder, id: raw.id || "", kind: "arbitration", kindCn: "仲裁任务",
+    node, planet, planetCn: PLANET_CN[planet] || planet,
+    missionType: mtype, missionTypeCn: MISSION_TYPE_CN[mtype] || mtype,
+    enemy: raw.enemy || "", etaMinutes: minutesLeft(raw.expiry, nowSec), expiry: raw.expiry,
+    isHard: false, isStorm: false,
+  };
+}
+
+/* ---------------- 规则引擎（对应 filters.py） ---------------- */
+
+function coerceBool(v) {
+  if (typeof v === "boolean") return v;
+  return ["true", "1", "yes", "是", "对", "钢路"].includes(String(v).trim().toLowerCase());
+}
+function searchable(m, key) {
+  if (key === "missionType") return [m.missionType || "", m.missionTypeCn || ""];
+  if (key === "planet") return [m.planet || "", m.planetCn || ""];
+  if (key === "kind") return [m.kind || "", m.kindCn || ""];
+  if (key === "tier") return [m.tier || "", m.tierCn || ""];
+  return [m[key] || ""];
+}
+
+function ruleMatches(rule, mission) {
+  const key = rule.field, op = rule.op, val = rule.value;
+  if (!key || !op) return false;
+  const ftype = FIELD_TYPES[key] || "string";
+  if (ftype === "number") {
+    const lhs = mission[key];
+    if (lhs == null) return op === "ne";
+    const rhs = parseFloat(val);
+    if (isNaN(rhs)) return false;
+    if (op === "eq") return lhs === rhs;
+    if (op === "ne") return lhs !== rhs;
+    if (op === "gt") return lhs > rhs;
+    if (op === "gte") return lhs >= rhs;
+    if (op === "lt") return lhs < rhs;
+    if (op === "lte") return lhs <= rhs;
+    return false;
+  }
+  if (ftype === "bool") {
+    const lhs = !!mission[key], rhs = coerceBool(val);
+    if (op === "eq") return lhs === rhs;
+    if (op === "ne") return lhs !== rhs;
+    return false;
+  }
+  const needle = (val == null ? "" : String(val)).trim().toLowerCase();
+  const search = searchable(mission, key);
+  if (op === "eq") return search.some((s) => s && s.toLowerCase() === needle);
+  if (op === "ne") return !search.some((s) => s && s.toLowerCase() === needle);
+  if (op === "contains") return search.some((s) => !!needle && (s || "").toLowerCase().includes(needle));
+  if (op === "not_contains") return !search.some((s) => !!needle && (s || "").toLowerCase().includes(needle));
+  return false;
+}
+
+function groupMatches(group, mission) {
+  if (!group) return true;
+  const rules = group.rules || [];
+  if (!rules.length) return true;
+  const connector = (group.connector || "and").toLowerCase();
+  const results = rules.map((r) => ruleMatches(r, mission));
+  return connector === "and" ? results.every(Boolean) : results.some(Boolean);
+}
+
+function buildSummary(m) {
+  const parts = [];
+  if (m.kind === "fissure") { parts.push(m.categoryCn || "裂缝"); parts.push(m.tierCn || m.tier || "?"); }
+  else parts.push("仲裁");
+  parts.push(m.missionTypeCn || m.missionType || "?");
+  parts.push(m.node || "?");
+  if (m.planet && m.planet !== "未知") parts.push(m.planet);
+  if (m.isHard) parts.push("钢铁之路");
+  if (m.isStorm) parts.push("星舰");
+  if (m.etaMinutes != null) parts.push(`剩 ${m.etaMinutes} 分钟`);
+  return parts.join(" · ");
+}
+
+/* ---------------- 扫描与监控调度（对应 scheduler.py） ---------------- */
+
+async function doScan() {
+  if (scanState.scanning) return;
+  scanState.scanning = true;
+  const nowSec = Date.now() / 1000;
+  scanState.lastRunTs = nowSec;
+  scanState.lastRun = new Date().toISOString();
+  const results = {};
+  const errors = [];
+
+  for (const t of config.cycles) {
+    try {
+      const ep = CYCLE_ENDPOINTS[t] || (t + "Cycle");
+      let raw = await fetchJSON(ep);
+      let norm = normalizeCycle(raw, t, nowSec);
+      if (norm.timeLeftSec === 0) {
+        // 周期恰在翻转时数据源可能滞后返回过期数据：稍候重取一次
+        await new Promise((r) => setTimeout(r, 1500));
+        raw = await fetchJSON(ep);
+        norm = normalizeCycle(raw, t, nowSec);
+      }
+      // 仍已过期则按轮换映射表推理下一状态（数据源滞后时的临时显示）
+      norm = inferNextCycle(norm, t, nowSec);
+      (results.cycles = results.cycles || {})[t] = norm;
+    } catch (e) {
+      if (is404(e)) {
+        (results.cycles = results.cycles || {})[t] = { target: t, available: false, error: "API 未提供该数据 (404)" };
+      } else {
+        errors.push(`${t}: ${e.message}`);
+        (results.cycles = results.cycles || {})[t] = { target: t, available: false, error: String(e.message) };
+      }
+    }
+  }
+
+  if (config.arbitration) {
+    try {
+      results.arbitration = normalizeArbitration(await fetchJSON("arbitration"), nowSec);
+    } catch (e) {
+      if (is404(e)) results.arbitration = { active: false };
+      else { errors.push(`arbitration: ${e.message}`); results.arbitration = { active: false, error: String(e.message) }; }
+    }
+  }
+
+  const want = config.fissures;
+  if (want.normal || want.steelPath || want.railjack) {
+    try {
+      const raw = await fetchJSON("fissures");
+      const all = raw.map((r) => normalizeMission(r, nowSec));
+      results.fissuresAll = all;
+      results.fissures = all.filter((m) =>
+        (m.category === "normal" && want.normal) ||
+        (m.category === "steelPath" && want.steelPath) ||
+        (m.category === "railjack" && want.railjack));
+      results.fissureTotal = all.length;
+    } catch (e) {
+      errors.push(`fissures: ${e.message}`);
+      results.fissures = []; results.fissuresAll = [];
+    }
+  }
+
+  if (!config.cycles.length && !config.arbitration && !want.normal && !want.steelPath && !want.railjack) {
+    errors.push("未选择任何扫描目标");
+  }
+
+  results.fetchedAt = new Date().toISOString();
+  scanState.results = results;
+  scanState.lastError = errors.length ? errors.join("；") : null;
+  if (!errors.length) scanState.lastSuccess = results.fetchedAt;
+  scanState.nextRun = new Date(Date.now() + config.scanInterval * 1000).toISOString();
+  scanState.scanning = false;
+  render();
+}
+
+function collectCandidates(nowSec) {
+  const res = scanState.results;
+  if (res.fetchedAt && nowSec - (tsFromIso(res.fetchedAt) || 0) <= 120 && res.fissuresAll) {
+    const cands = res.fissuresAll.map((m) => Object.assign({}, m));
+    if (res.arbitration && res.arbitration.active) cands.push(Object.assign({}, res.arbitration));
+    return cands;
+  }
+  return null;
+}
+
+async function doWatch() {
+  const w = config.watcher;
+  const nowSec = Date.now() / 1000;
+  watcherState.lastRunTs = nowSec;
+  watcherState.lastRun = new Date().toISOString();
+
+  let candidates = collectCandidates(nowSec);
+  if (candidates == null) {
+    try {
+      const now = Date.now() / 1000;
+      const fiss = (await fetchJSON("fissures")).map((r) => normalizeMission(r, now));
+      let arb;
+      try { arb = normalizeArbitration(await fetchJSON("arbitration"), now); }
+      catch (e) { arb = { active: false }; }
+      candidates = fiss;
+      if (arb.active) candidates.push(arb);
+    } catch (e) {
+      watcherState.lastError = "获取任务数据失败，请检查网络/API 状态";
+      watcherState.nextRun = new Date(Date.now() + w.interval * 1000).toISOString();
+      return;
+    }
+  }
+
+  const group = { connector: w.connector, rules: w.rules };
+  const matches = candidates.filter((m) => groupMatches(group, m));
+  const currentIds = new Set(candidates.filter((m) => m.id).map((m) => m.id));
+  const newAlerts = [];
+  for (const m of matches) {
+    if (!m.id || watcherState.seen.has(m.id)) continue;
+    watcherState.seen.add(m.id);
+    newAlerts.push(m);
+  }
+  if (newAlerts.length) {
+    watcherState.alertSeq += 1;
+    watcherState.lastAlertSummary = buildSummary(newAlerts[0]);
+  }
+  for (const id of [...watcherState.seen]) if (!currentIds.has(id)) watcherState.seen.delete(id);
+  // 结果快照：直接覆盖旧结果，不保留历史
+  watcherState.results = matches;
+  watcherState.resultsAt = new Date().toISOString();
+  watcherState.lastError = null;
+  watcherState.nextRun = new Date(Date.now() + w.interval * 1000).toISOString();
+  render();
+}
+
+/* ---------------- 渲染 ---------------- */
+
+function renderSettings() {
+  const c = config;
+  const p = $("platform");
+  if (document.activeElement !== p && p.value !== c.platform) p.value = c.platform;
+  const si = $("scanInterval");
+  if (document.activeElement !== si && si.value !== String(c.scanInterval)) si.value = c.scanInterval;
+  document.querySelectorAll("#cycleTargets input[data-cycle]").forEach((cb) => {
+    cb.checked = (c.cycles || []).includes(cb.dataset.cycle);
+  });
+  $("arbitration").checked = !!c.arbitration;
+  document.querySelectorAll("#fissureTargets [data-cat]").forEach((cb) => {
+    cb.checked = !!(c.fissures || {})[cb.dataset.cat];
+  });
+}
+
+function renderStatus() {
+  const s = scanState;
+  const badge = s.running
+    ? '<span class="badge running">扫描中</span>'
+    : '<span class="badge stopped">已停止</span>';
+  let html = badge;
+  html += `<span>上次扫描: ${fmtLocal(s.lastRun)}</span>`;
+  html += `<span>下次扫描: ${s.nextRun ? fmtCountdown(secsLeftNow(s.nextRun)) : "—"}</span>`;
+  if (s.lastSuccess) html += `<span>上次成功: ${fmtLocal(s.lastSuccess)}</span>`;
+  if (s.lastError) html += `<span class="err-text">错误: ${esc(s.lastError)}</span>`;
+  $("statusBar").innerHTML = html;
+  const res = s.results || {};
+  $("fetchedAt").textContent = res.fetchedAt ? `数据时间: ${fmtLocal(res.fetchedAt)}` : "";
+}
+
+function renderCycles() {
+  const wrap = $("cycleCards");
+  const res = scanState.results || {};
+  const cycles = res.cycles || {};
+  const fetchedAt = res.fetchedAt;
+  wrap.innerHTML = META.cycleTargets.map((t) => {
+    const c = cycles[t.key];
+    if (!c) return `<div class="cycle-card"><div class="title">${esc(t.labelCn)}</div><div class="unavailable">尚未扫描</div></div>`;
+    if (!c.available) return `<div class="cycle-card"><div class="title">${esc(t.labelCn)}</div><div class="unavailable">不可用: ${esc(c.error || "")}</div></div>`;
+    const sl = remainingSec(c, fetchedAt);
+    let frac = null;
+    const a = Date.parse(c.activation), e = Date.parse(c.expiry);
+    if (!isNaN(a) && !isNaN(e) && e > a) frac = Math.max(0, Math.min(1, (e - Date.now()) / (e - a)));
+    return `<div class="cycle-card">
+      <div class="title">${esc(t.labelCn)}</div>
+      <div class="state ${esc(c.state)}">${cycleIcon(t.key, c.state)} ${esc(c.stateCn)}${c.inferred ? ' <span class="muted">已切换</span>' : ''}</div>
+      <div class="progress"><div class="bar" style="width:${frac == null ? 100 : Math.round(frac * 100)}%"></div></div>
+      <div class="countdown">${fmtRemaining(sl, "即将切换…")}</div>
+    </div>`;
+  }).join("");
+}
+
+function renderArbitration() {
+  const el = $("arbitrationCard");
+  const res = scanState.results || {};
+  const arb = res.arbitration;
+  if (!arb) { el.innerHTML = `<div class="none-arb">尚未扫描仲裁任务</div>`; return; }
+  if (arb.error) { el.innerHTML = `<div class="none-arb">仲裁数据获取失败: ${esc(arb.error)}</div>`; return; }
+  if (!arb.active) { el.innerHTML = `<div class="arb-card none-arb">当前没有进行中的仲裁任务</div>`; return; }
+  el.innerHTML = `<div class="arb-card">
+    <div class="grid">
+      <span class="item"><b>星球</b> ${esc(arb.planetCn)}</span>
+      <span class="item"><b>节点</b> ${esc(arb.node)}</span>
+      <span class="item"><b>任务类型</b> ${esc(arb.missionTypeCn)}</span>
+      <span class="item"><b>敌人</b> ${esc(arb.enemy || "—")}</span>
+      <span class="item"><b>剩余</b> ${fmtRemaining(remainingSec(arb, res.fetchedAt), "即将结束…")}</span>
+    </div>
+  </div>`;
+}
+
+function renderFissures() {
+  const res = scanState.results || {};
+  const list = res.fissures || [];
+  let countText = `共 ${list.length} 个裂缝`;
+  if (res.fissureTotal != null && res.fissureTotal > list.length) {
+    countText += `（另有 ${res.fissureTotal - list.length} 个未勾选类别）`;
+  }
+  $("fissureCount").textContent = countText;
+  const sorted = [...list].sort((a, b) => (a.etaMinutes ?? 1e9) - (b.etaMinutes ?? 1e9));
+  const tbody = $("fissureTbody");
+  if (!sorted.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty">暂无数据 — 点击「立即扫描」获取</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = sorted.map((m) => {
+    const lv = (m.enemyLevelMin != null && m.enemyLevelMax != null)
+      ? `${m.enemyLevelMin}-${m.enemyLevelMax}${m.enemyLevelRef ? " (参考)" : ""}` : "—";
+    return `<tr>
+      <td><span class="chip ${esc(m.category)}">${esc(m.categoryCn)}</span></td>
+      <td><span class="chip tier-${esc(m.tier)}">${esc(m.tierCn || m.tier) || "—"}</span></td>
+      <td>${esc(m.missionTypeCn)}</td>
+      <td>${lv}</td>
+      <td>${esc(m.planetCn)}</td>
+      <td>${esc(m.node)}</td>
+      <td>${fmtRemaining(remainingSec(m, res.fetchedAt), "即将结束…")}</td>
+    </tr>`;
+  }).join("");
+}
+
+/* ---- 规则构建器 ---- */
+
+function fieldMeta(key) { return WATCH_FIELDS.find((f) => f.key === key) || null; }
+function opsFor(key) { return OPS_BY_TYPE[(fieldMeta(key) || {}).type || "string"] || ["eq", "ne"]; }
+
+function updateConnectorLabel() {
+  const lab = $("connectorLabel");
+  if (!lab) return;
+  lab.textContent = $("watcherConnector").value === "or" ? "任一满足 (OR)" : "全部满足 (AND)";
+}
+
+function buildRuleBuilder() {
+  const cfgRules = (config.watcher.rules || []).map((r) => ({ field: r.field, op: r.op, value: r.value }));
+  if (ruleDraft === null) {
+    ruleDraft = cfgRules.length ? cfgRules : [{ field: "tier", op: "eq", value: "Axi" }];
+  }
+  const c = $("ruleBuilder");
+  c.innerHTML = `
+    <div class="rule-connector-hint">命中条件（逻辑：<b id="connectorLabel"></b>）— 对每次扫描到的任务逐条判断，命中即提醒</div>
+    <div id="ruleRows"></div>
+    <button class="btn accent btn-add-rule" id="btnAddRule">＋ 添加规则</button>
+    <datalist id="dl-missionType"></datalist>
+    <datalist id="dl-planet"></datalist>`;
+  const dl1 = $("dl-missionType"), dl2 = $("dl-planet");
+  META.missionTypes.forEach((v) => dl1.insertAdjacentHTML("beforeend", `<option value="${esc(v)}">`));
+  META.planets.forEach((v) => dl2.insertAdjacentHTML("beforeend", `<option value="${esc(v)}">`));
+  renderRuleRows();
+  $("btnAddRule").onclick = () => { ruleDraft.push({ field: "tier", op: "eq", value: "" }); renderRuleRows(); };
+  updateConnectorLabel();
+}
+
+function renderRuleRows() {
+  const wrap = $("ruleRows");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  ruleDraft.forEach((rule, i) => wrap.appendChild(buildRuleRow(rule, i)));
+}
+
+function buildRuleRow(rule, i) {
+  const row = document.createElement("div");
+  row.className = "rule-row";
+  const fsel = document.createElement("select");
+  fsel.className = "field";
+  WATCH_FIELDS.forEach((f) => {
+    const o = document.createElement("option");
+    o.value = f.key; o.textContent = f.label;
+    if (f.key === rule.field) o.selected = true;
+    fsel.appendChild(o);
+  });
+  fsel.onchange = () => { rule.field = fsel.value; rule.op = opsFor(rule.field)[0]; rule.value = ""; renderRuleRows(); };
+  const osel = document.createElement("select");
+  osel.className = "op";
+  opsFor(rule.field).forEach((opk) => {
+    const o = document.createElement("option");
+    o.value = opk;
+    const om = OPS.find((x) => x[0] === opk);
+    o.textContent = om ? om[1] : opk;
+    if (opk === rule.op) o.selected = true;
+    osel.appendChild(o);
+  });
+  osel.onchange = () => { rule.op = osel.value; };
+  const fmeta = fieldMeta(rule.field);
+  const ftype = fmeta ? fmeta.type : "string";
+  let vctl;
+  if (ftype === "bool") {
+    vctl = document.createElement("select");
+    vctl.className = "val";
+    [["true", "是"], ["false", "否"]].forEach(([v, l]) => {
+      const o = document.createElement("option");
+      o.value = v; o.textContent = l;
+      if (String(rule.value) === v) o.selected = true;
+      vctl.appendChild(o);
+    });
+    vctl.onchange = () => { rule.value = vctl.value === "true"; };
+  } else if (ftype === "choice") {
+    vctl = document.createElement("select");
+    vctl.className = "val";
+    (fmeta.choices || []).forEach((ch) => {
+      const o = document.createElement("option");
+      if (Array.isArray(ch)) { o.value = ch[0]; o.textContent = ch[1]; }
+      else { o.value = ch; o.textContent = ch; }
+      if (String(rule.value) === o.value) o.selected = true;
+      vctl.appendChild(o);
+    });
+    vctl.onchange = () => { rule.value = vctl.value; };
+  } else {
+    vctl = document.createElement("input");
+    vctl.type = ftype === "number" ? "number" : "text";
+    vctl.className = "val";
+    vctl.value = rule.value == null ? "" : rule.value;
+    if (rule.field === "missionType") vctl.setAttribute("list", "dl-missionType");
+    if (rule.field === "planet") vctl.setAttribute("list", "dl-planet");
+    const sync = () => { rule.value = ftype === "number" ? parseFloat(vctl.value) : vctl.value; };
+    vctl.onchange = sync; vctl.oninput = sync;
+  }
+  const del = document.createElement("button");
+  del.className = "del"; del.textContent = "✕"; del.title = "删除该规则";
+  del.onclick = () => { ruleDraft.splice(i, 1); renderRuleRows(); };
+  row.append(fsel, osel, vctl, del);
+  return row;
+}
+
+function collectWatcherPayload() {
+  return {
+    enabled: $("watcherEnabled").checked,
+    interval: parseInt($("watcherInterval").value, 10) || 30,
+    connector: $("watcherConnector").value,
+    rules: ruleDraft || [],
+    notifySound: $("notifySound").checked,
+    notifyDesktop: $("notifyDesktop").checked,
+  };
+}
+
+function saveWatcher() {
+  config.watcher = sanitize({ ...config, watcher: collectWatcherPayload() }).watcher;
+  persistConfig();
+  toast("监控规则已保存");
+  // 规则生效后立即抓取一次（5 秒冷却，避免过于频繁）
+  if (config.watcher.enabled) {
+    const now = Date.now();
+    if (!watcherState.lastRunTs || now - watcherState.lastRunTs * 1000 >= 5000) {
+      doWatch();
+    }
+  }
+  render();
+}
+
+function testRules() {
+  const group = { connector: $("watcherConnector").value, rules: ruleDraft || [] };
+  let cands = collectCandidates(Date.now() / 1000);
+  const sb = $("watcherStatus");
+  if (cands == null) {
+    fetchJSON("fissures").then((raw) => {
+      const now = Date.now() / 1000;
+      const c2 = raw.map((r) => normalizeMission(r, now));
+      fetchJSON("arbitration").then((a) => {
+        const arb = normalizeArbitration(a, now);
+        if (arb.active) c2.push(arb);
+        showTestResult(group, c2, sb);
+      }).catch(() => showTestResult(group, c2, sb));
+    }).catch((e) => { sb.innerHTML = `<span class="err-text">无法获取数据: ${esc(e.message)}</span>`; });
+  } else {
+    showTestResult(group, cands, sb);
+  }
+}
+
+function showTestResult(group, cands, sb) {
+  const matches = cands.filter((m) => groupMatches(group, m));
+  let html = `测试完成：共检查 ${cands.length} 个候选任务，命中 <b>${matches.length}</b> 个`;
+  if (matches.length) {
+    html += `<ul class="match-log" style="max-height:180px;margin-top:6px">` +
+      matches.slice(0, 20).map((m) =>
+        `<li><span class="kind">${esc(m.kindCn)}</span><span>${esc(buildSummary(m))}</span></li>`).join("") +
+      `</ul>`;
+  }
+  sb.innerHTML = html;
+}
+
+function renderWatcher() {
+  const w = config.watcher;
+  $("watcherEnabled").checked = !!w.enabled;
+  if (document.activeElement !== $("watcherInterval") && $("watcherInterval").value !== String(w.interval)) $("watcherInterval").value = w.interval;
+  if ($("watcherConnector").value !== w.connector) $("watcherConnector").value = w.connector;
+  $("notifySound").checked = !!w.notifySound;
+  $("notifyDesktop").checked = !!w.notifyDesktop;
+  const sig = JSON.stringify(w.rules);
+  if (sig !== lastRuleSig) { lastRuleSig = sig; ruleDraft = null; buildRuleBuilder(); }
+  else updateConnectorLabel();
+  const sb = $("watcherStatus");
+  if (!w.enabled) {
+    sb.textContent = "监控未启用 — 勾选「启用监控」并点击「保存规则」后开始。";
+  } else {
+    let s = '<span class="badge running">监控中</span>';
+    s += `<span>上次检查: ${fmtLocal(watcherState.lastRun)}</span>`;
+    s += `<span>下次检查: ${watcherState.nextRun ? fmtCountdown(secsLeftNow(watcherState.nextRun)) : "—"}</span>`;
+    if (watcherState.lastError) s += `<span class="err-text">${esc(watcherState.lastError)}</span>`;
+    sb.innerHTML = s;
+  }
+}
+
+function renderMatches() {
+  // 监控命中：当前快照直接覆盖显示，样式与常规扫描结果一致
+  const ms = watcherState.results || [];
+  $("watcherCount").textContent = ms.length ? `共 ${ms.length} 条` : "";
+  const tbody = $("watcherTbody");
+  if (!ms.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty">暂无命中 — 保存并启用规则后，符合条件的任务会显示在这里</td></tr>`;
+    return;
+  }
+  const resultsAt = watcherState.resultsAt;
+  const sorted = [...ms].sort((a, b) => (a.etaMinutes ?? 1e9) - (b.etaMinutes ?? 1e9));
+  tbody.innerHTML = sorted.map((m) => {
+    const cat = m.kind === "arbitration" ? "仲裁" : (m.categoryCn || "裂缝");
+    const lv = (m.enemyLevelMin != null && m.enemyLevelMax != null)
+      ? `${m.enemyLevelMin}-${m.enemyLevelMax}${m.enemyLevelRef ? " (参考)" : ""}` : "—";
+    return `<tr>
+      <td><span class="chip ${esc(m.category || "")}">${esc(cat)}</span></td>
+      <td><span class="chip tier-${esc(m.tier)}">${esc(m.tierCn || m.tier) || "—"}</span></td>
+      <td>${esc(m.missionTypeCn || m.missionType)}</td>
+      <td>${lv}</td>
+      <td>${esc(m.planetCn || m.planet)}</td>
+      <td>${esc(m.node)}</td>
+      <td>${fmtRemaining(remainingSec(m, resultsAt), "即将结束…")}</td>
+    </tr>`;
+  }).join("");
+}
+
+function handleAlerts() {
+  const seq = watcherState.alertSeq || 0;
+  if (seq <= lastAlertSeq) return;
+  const n = seq - lastAlertSeq;
+  lastAlertSeq = seq;
+  const summary = watcherState.lastAlertSummary;
+  const banner = $("alertBanner");
+  if (summary) {
+    banner.textContent = `🔔 命中提醒（${n} 条新命中）：${summary}`;
+    banner.classList.remove("hidden");
+    clearTimeout(banner._t);
+    banner._t = setTimeout(() => banner.classList.add("hidden"), 8000);
+  }
+  if (config.watcher.notifySound) beep();
+  if (config.watcher.notifyDesktop && summary) notifyDesktop("Warframe 小助手 — 任务命中", summary);
+}
+
+function render() {
+  renderStatus();
+  renderSettings();
+  renderCycles();
+  renderArbitration();
+  renderFissures();
+  renderWatcher();
+  renderMatches();
+  handleAlerts();
+}
+
+/* ---------------- 事件绑定与初始化 ---------------- */
+
+function buildPlatformSelect() {
+  $("platform").innerHTML = META.platforms
+    .map((p) => `<option value="${esc(p.key)}">${esc(p.label)}</option>`).join("");
+}
+function buildCycleCheckboxes() {
+  $("cycleTargets").innerHTML = META.cycleTargets.map((t) =>
+    `<label class="chk"><input type="checkbox" data-cycle="${t.key}"> ${esc(t.labelCn)} <span class="muted">(${esc(t.sub)})</span></label>`
+  ).join("");
+}
+
+function bindEvents() {
+  $("platform").onchange = () => { config.platform = $("platform").value; persistConfig(); toast("平台已切换，下次扫描生效"); };
+  $("scanInterval").onchange = () => {
+    config.scanInterval = sanitize({ ...config, scanInterval: parseInt($("scanInterval").value, 10) || 60 }).scanInterval;
+    persistConfig(); toast("扫描间隔已更新");
+  };
+  $("arbitration").onchange = () => { config.arbitration = $("arbitration").checked; persistConfig(); };
+  document.querySelectorAll("#fissureTargets [data-cat]").forEach((cb) => {
+    cb.onchange = () => {
+      const f = {};
+      document.querySelectorAll("#fissureTargets [data-cat]").forEach((c) => { f[c.dataset.cat] = c.checked; });
+      config.fissures = f; persistConfig();
+    };
+  });
+  $("cycleTargets").addEventListener("change", (e) => {
+    if (e.target.matches("input[data-cycle]")) {
+      const cycles = [];
+      document.querySelectorAll("#cycleTargets input[data-cycle]").forEach((c) => { if (c.checked) cycles.push(c.dataset.cycle); });
+      config.cycles = cycles; persistConfig();
+    }
+  });
+  $("btnScanStart").onclick = () => { scanState.running = true; toast("已开始周期性扫描"); };
+  $("btnScanStop").onclick = () => { scanState.running = false; toast("已停止扫描"); };
+  $("btnScanNow").onclick = () => { scanState.running = true; doScan(); toast("已请求立即扫描…"); };
+  $("btnWatcherSave").onclick = () => saveWatcher();
+  $("btnWatcherTest").onclick = () => testRules();
+  ["watcherEnabled", "watcherInterval", "watcherConnector", "notifySound", "notifyDesktop"].forEach((id) => {
+    $(id).addEventListener("change", () => {
+      if (id === "notifyDesktop" && $(id).checked) requestNotifPermission();
+      saveWatcher();
+    });
+  });
+}
+
+function tick() {
+  const now = Date.now();
+  if (scanState.running && !scanState.scanning &&
+      (!scanState.lastRunTs || now - scanState.lastRunTs * 1000 >= config.scanInterval * 1000)) {
+    doScan();
+  }
+  if (config.watcher.enabled &&
+      (!watcherState.lastRunTs || now - watcherState.lastRunTs * 1000 >= config.watcher.interval * 1000)) {
+    doWatch();
+  }
+  render();
+}
+
+function init() {
+  buildPlatformSelect();
+  buildCycleCheckboxes();
+  bindEvents();
+  scanState.running = true;
+  doScan();
+  setInterval(tick, 1000);
+}
+
+window.addEventListener("DOMContentLoaded", init);
+
+/* 暴露核心函数，便于构建/测试脚本做一致性校验 */
+window.__WFT = {
+  normalizeMission, normalizeArbitration, normalizeCycle, inferNextCycle,
+  groupMatches, buildSummary, sanitize, parsePlanet, referenceLevels,
+  TIER_CN, DUVIRI_MOOD_CN, NEXT_STATE,
+};
+
+</script>
+<footer class="muted" style="text-align:center;padding:14px 0 30px;font-size:12px;">单文件离线版 · 数据来自 api.warframestat.us · 建议保持本页面开启以持续监控 · 桌面通知在 file:// 打开时可能受限，声音提醒始终可用</footer>
+</body>
+</html>
