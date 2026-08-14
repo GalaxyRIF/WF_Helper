@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Warframe 小助手 · 单文件版 (方案2) · 生成于 2026-08-14 08:22:55 UTC · 由 build/make_plan2.py 自动生成，请勿手工编辑 -->
+<!-- Warframe 小助手 · 单文件版 (方案2) · 生成于 2026-08-14 09:09:07 UTC · 由 build/make_plan2.py 自动生成，请勿手工编辑 -->
 
 <html lang="zh-CN">
 <head>
@@ -126,6 +126,17 @@ input[type="number"] { width: 84px; }
 @media (max-width: 860px) {
   .cycle-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
 }
+.activity-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.activity-card {
+  background: var(--panel2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px; font-size: 13px;
+}
+.activity-card .title { color: var(--gold); font-size: 14px; font-weight: 600; }
+.activity-card .sub { color: var(--muted); font-size: 12px; margin: 2px 0 8px; }
+.activity-card ul { margin: 6px 0 0; padding-left: 18px; }
+.activity-card li { margin: 3px 0; }
+.activity-card .mod { color: var(--cyan); }
+.activity-card .cnt { color: var(--muted); font-size: 12px; margin-top: 6px; }
 .unavailable { color: var(--muted); font-size: 12px; }
 
 .arb-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; background: var(--panel2); margin-top: 16px; }
@@ -234,6 +245,9 @@ tbody tr:hover { background: rgba(88, 166, 255, 0.06); }
         <label class="chk"><input type="checkbox" data-cat="railjack"> 航道星舰裂缝</label>
         <p class="hint">勾选的裂缝类别会展示在下方结果中，并作为自定义监控的数据范围。</p>
       </fieldset>
+      <fieldset id="activityTargets">
+        <legend>周期活动（每日/每周，无需频繁刷新）</legend>
+      </fieldset>
     </div>
   </section>
 
@@ -254,6 +268,11 @@ tbody tr:hover { background: rgba(88, 166, 255, 0.06); }
         <tbody id="fissureTbody"></tbody>
       </table>
       <p class="hint">敌人等级为按星球 + 任务类型的参考值（钢铁之路 +100 级），仅供参考；剩余时间实时倒计时。</p>
+    </div>
+    <div class="activity-section">
+      <h3>周期活动 <span id="activityFetchedAt" class="muted"></span></h3>
+      <div id="activityCards" class="activity-grid"></div>
+      <p class="hint">每日突击 / 每周执行官 / 深层·时空科研为长轮换内容，约 30 分钟才刷新一次数据，显示各自的轮换剩余时间。</p>
     </div>
   </section>
 
@@ -345,6 +364,90 @@ const CYCLE_PHASE_SECONDS = {
   earth: 4 * 3600, cetus: 50 * 60, cambion: 50 * 60, fortuna: 400,
 };
 
+// 周期活动（每日/每周长轮换）目标: [key, 中文标签, 英文说明]
+const ACTIVITY_TARGETS = [
+  ["sortie", "每日突击", "Sortie"],
+  ["archonHunt", "每周执行官", "Archon Hunt"],
+  ["archimedeaDeep", "火卫二深层科研", "Deep Archimedea"],
+  ["archimedeaTemporal", "霍瓦尼亚时光科研", "Temporal Archimedea"],
+];
+
+// 周期活动刷新间隔（毫秒）：轮换为每日/每周，无需每次主扫描都刷新
+const ACTIVITY_REFRESH_MS = 30 * 60 * 1000;
+
+// 词条翻译表：(中文名, 中文说明)，对应 constants.py
+const MODE_CN = {
+  "Deep Archimedea": ["深层科研", "火卫二（圣所解剖）的每周科研模式"],
+  "Temporal Archimedea": ["自爆科腐者", "霍瓦尼亚的每周科研模式"],
+};
+const FACTION_CN = {
+  "Man in the Wall": "低语者", "Murmur": "低语者", "Techrot": "科腐者",
+  "Scaldra": "炽蛇军", "Narmer": "合一众",
+  "Corpus": "Corpus", "Grineer": "Grineer", "Infested": "Infested",
+  "Orokin": "Orokin", "Tenno": "Tenno",
+};
+const BOSS_CN = {
+  "Ambulas": ["安博拉斯", "Corpus 头目"],
+  "Raptor": ["拉普塔", "Corpus 飞行器头目"],
+  "Sgt. Nef Anyo": ["内夫·安约军士长", "Corpus 头目"],
+  "Kela De Thaym": ["凯拉·德·塞姆", "Grineer 头目"],
+  "Lech Kril": ["莱西·克里尔", "Grineer 头目"],
+  "Captain Vor": ["沃船长", "Grineer 头目"],
+  "Jackal": ["猎犬", "Corpus 头目"],
+  "Hyena Pack": ["鬣狗群", "Corpus 头目"],
+  "Alad V": ["阿拉德五世", "Corpus 头目"],
+  "Mutalist Alad V": ["变异阿拉德五世", "Infested 头目"],
+  "Vay Hek": ["维·海克", "Grineer 头目"],
+  "Tyl Regor": ["提尔·雷格", "Grineer 头目"],
+  "Sargas Ruk": ["萨格斯·鲁克", "Grineer 头目"],
+  "Archon Boreal": ["执刑官诡文枭主", "地球执刑官猎杀首领"],
+  "Archon Amar": ["执刑官欺谋狼主", "火星执刑官猎杀首领"],
+  "Archon Nira": ["执刑官混沌蛇主", "木星执刑官猎杀首领"],
+};
+const SORTIE_MOD_CN = {
+  "Weapon Restriction: Sniper Only": ["狙击枪限定", "只允许携带狙击枪。"],
+  "Weapon Restriction: Rifle Only": ["突击步枪限定", "只允许携带突击步枪。"],
+  "Weapon Restriction: Bow Only": ["弓限定", "只允许携带弓类武器。"],
+  "Weapon Restriction: Pistol Only": ["手枪限定", "只允许携带手枪。"],
+  "Weapon Restriction: Shotgun Only": ["霰弹枪限定", "只允许携带霰弹枪。"],
+  "Weapon Restriction: Melee Only": ["近战限定", "只允许携带近战武器。"],
+  "Environmental Effect: Extreme Cold": ["极度寒冷", "行动能力大幅下降，不能冲刺。"],
+  "Environmental Effect: Fire Hazard": ["火灾", "战甲最大生命值减半，救援速度降低。"],
+  "Environmental Effect: Radiation Hazard": ["辐射灾害", "敌人获得辐射伤害加成，物理伤害降低。"],
+  "Enemy Physical Enhancement: Impact": ["敌人物理强化（冲击）", "敌人获得 100% 物理伤害加成与 85% 物理抗性。"],
+  "Enemy Physical Enhancement: Puncture": ["敌人物理强化（穿刺）", "敌人获得 100% 物理伤害加成与 85% 物理抗性。"],
+  "Enemy Physical Enhancement: Slash": ["敌人物理强化（切割）", "敌人获得 100% 物理伤害加成与 85% 物理抗性。"],
+  "Enemy Elemental Enhancement": ["敌人元素强化", "敌人获得 100% 元素伤害加成与 85% 元素抗性。"],
+  "Enemy Shield Enhancement": ["敌人护盾强化", "敌人拥有 300% 的护盾加成。"],
+  "Coolant Leak": ["冷却液泄漏", "战甲最大护盾减半，敌人获得冰冻伤害加成。"],
+  "Energy Reduction": ["能量降低", "能量获取量减少。"],
+  "Shield Reduction": ["护盾降低", "护盾上限降低。"],
+  "Low Gravity": ["低重力", "任务中重力降低。"],
+};
+const ARCHIMEDEA_TERM_CN = {
+  "Fissure Cascade": ["裂缝激增", "裂缝在任务中形成，敌人等级每 10 秒提升 1 级。"],
+  "Glyph Inflation": ["浮印膨胀", "安全系统需要两倍的荧音浮印才能激活。"],
+  "Alchemical Invulnerability": ["炼金难侵", "10% 敌人装备不可穿透的元素屏障，只有对应元素瓶可摧毁。"],
+  "Pile-On": ["寄生装置塔", "维生装置塔只有在 15 米范围内杀死 20 名敌人后才会激活。"],
+  "Mitosis": ["有丝分裂", "每轮产生两个传承种，需要两倍的捕获次数。"],
+  "Sealed Armor": ["装甲护板", "只有热熔火箭炮能对坦克造成伤害。"],
+  "Postmortal Surges": ["死后冲击", "被击杀的敌人会爆发出虚空能量。"],
+  "Commanding Culverins": ["指挥型重型炮兵", "暴戾重型炮兵武器对超宏防护与殁世机甲造成 5 倍伤害。"],
+  "Bolstered Belligerents": ["强化好战", "所有敌人获得相当于最大生命值 50% 的超宏防护。"],
+  "Hostile Regeneration": ["敌军再生", "敌人的生命值会缓慢恢复。"],
+  "Alluring Arcocanids": ["迷人弧犬", "暴戾弧犬攻击时会将战甲拉向自己。"],
+  "Entanglement": ["牵连", "被击杀敌人 4 米内的友军移动速度与跑酷速度降低。"],
+  "Dense Fog": ["浓雾", "艾弗旺气体覆盖整个关卡。"],
+  "Beyond The Wall": ["墙壁之外", "低语者敌人加入炽蛇军和科腐者阵营。"],
+  "Energy Exhaustion": ["能量枯竭", "10 米内的敌人使你每秒丢失 2 点能量。"],
+  "Hypersensitive": ["过敏受体", "负面异常状态持续时间增至三倍。"],
+  "Fractured Armor": ["破损护甲", "施放技能使护甲降低 10%，持续 10 秒。"],
+  "Knifestep Syndrome": ["如履刀尖", "移动时损失生命值，跳跃可暂停。"],
+  "Lethargic Shields": ["嗜睡护盾", "护盾充能延迟增加 500%。"],
+  "Powerless": ["技能禁用", "杀死 50 名敌人前所有技能被禁止使用。"],
+  "Ability Overload": ["技能超载", "使用技能时在头顶打开虚空裂隙。"],
+};
+
 const MISSION_TYPE_CN = {
   "Exterminate": "歼灭", "Extermination": "歼灭", "Capture": "捕获", "Mobile Defense": "移动防御",
   "Spy": "间谍", "Sabotage": "破坏", "Survival": "生存", "Rescue": "救援",
@@ -356,6 +459,7 @@ const MISSION_TYPE_CN = {
   "Ascension": "扬升", "Alchemy": "元素转换", "Netracell": "衰退室",
   "Unknown": "未知", "Void Sabotage": "虚空破坏", "Void Exterminate": "虚空歼灭",
   "Void Capture": "虚空捕获",
+  "Assassination": "刺杀", "Legacyte Harvest": "传承种捕获",
 };
 
 const PLANET_CN = {
@@ -439,6 +543,7 @@ const DEFAULT_CONFIG = {
   cycles: ["earth", "cetus", "cambion", "fortuna", "duviri"],
   arbitration: true,
   fissures: { normal: true, steelPath: true, railjack: true },
+  activities: { sortie: true, archonHunt: true, archimedeaDeep: true, archimedeaTemporal: true },
   watcher: {
     enabled: false, interval: 30, connector: "and", rules: [],
     notifySound: true, notifyDesktop: false,
@@ -483,6 +588,11 @@ function sanitize(c) {
   cfg.arbitration = !!cfg.arbitration;
   const f = cfg.fissures || {};
   cfg.fissures = { normal: !!f.normal, steelPath: !!f.steelPath, railjack: !!f.railjack };
+  const a = cfg.activities || {};
+  cfg.activities = {
+    sortie: !!a.sortie, archonHunt: !!a.archonHunt,
+    archimedeaDeep: !!a.archimedeaDeep, archimedeaTemporal: !!a.archimedeaTemporal,
+  };
   const w = cfg.watcher || {};
   w.enabled = !!w.enabled;
   let wi = parseInt(w.interval, 10); if (isNaN(wi)) wi = 30;
@@ -739,6 +849,61 @@ function normalizeArbitration(raw, nowSec) {
   };
 }
 
+// 周期活动归一化（对应 filters.py normalize_activity）
+function termCn(term, table) {
+  if (!term) return ["", ""];
+  const hit = table[term];
+  return hit ? [hit[0], hit[1]] : [term, "未确定"];
+}
+function termListCn(terms, table) {
+  return (terms || []).map((t) => {
+    const [cn, desc] = termCn(t, table);
+    return { name: cn, desc, en: t };
+  });
+}
+
+function normalizeActivity(key, raw, nowSec) {
+  if (key === "sortie" || key === "archonHunt") {
+    const [bossCn, bossDesc] = termCn(raw.boss || "", BOSS_CN);
+    const missions = key === "sortie"
+      ? (raw.variants || []).map((v) => {
+          const [modCn, modDesc] = termCn(v.modifier || "", SORTIE_MOD_CN);
+          return {
+            missionTypeCn: MISSION_TYPE_CN[v.missionType] || v.missionType || "",
+            node: v.node || "", modifier: v.modifier || "",
+            modifierCn: modCn, modifierDesc: modDesc,
+          };
+        })
+      : (raw.missions || []).map((m) => ({
+          missionTypeCn: MISSION_TYPE_CN[m.type] || m.type || "",
+          node: m.node || "",
+        }));
+    return {
+      key, available: true, boss: raw.boss || "", bossCn, bossDesc,
+      faction: raw.faction || "", factionCn: FACTION_CN[raw.faction] || raw.faction || "",
+      missions, rewardPool: raw.rewardPool || "",
+      timeLeftSec: secondsLeft(raw.expiry, nowSec), expiry: raw.expiry,
+    };
+  }
+  const isTemporal = String(raw.typeKey || "").toUpperCase().replace(/ /g, "").includes("HEX");
+  return {
+    key, available: true, kind: isTemporal ? "temporal" : "deep", type: raw.type || "",
+    modeCn: MODE_CN[isTemporal ? "Temporal Archimedea" : "Deep Archimedea"][0],
+    missions: (raw.missions || []).map((m) => {
+      const [devCn, devDesc] = termCn((m.deviation || {}).name || "", ARCHIMEDEA_TERM_CN);
+      return {
+        missionTypeCn: MISSION_TYPE_CN[m.missionType] || m.missionType || "",
+        faction: m.faction || "", factionCn: FACTION_CN[m.faction] || m.faction || "",
+        deviation: (m.deviation || {}).name || "", deviationCn: devCn, deviationDesc: devDesc,
+        risks: termListCn((m.risks || []).slice(0, 3).map((r) => r.name || ""), ARCHIMEDEA_TERM_CN),
+      };
+    }),
+    personalModifiers: termListCn(
+      (raw.personalModifiers || []).map((m) => m.name || ""), ARCHIMEDEA_TERM_CN),
+    timeLeftSec: secondsLeft(raw.expiry, nowSec), expiry: raw.expiry,
+  };
+}
+
 /* ---------------- 规则引擎（对应 filters.py） ---------------- */
 
 function coerceBool(v) {
@@ -868,6 +1033,37 @@ async function doScan() {
     }
   }
 
+  // 周期活动（每日/每周长轮换）：TTL 内不重复刷新
+  const wantAct = config.activities;
+  if (wantAct.sortie || wantAct.archonHunt || wantAct.archimedeaDeep || wantAct.archimedeaTemporal) {
+    const old = scanState.results.activities;
+    let stale = true;
+    if (old && old.fetchedAt) {
+      const t = tsFromIso(old.fetchedAt);
+      if (t != null && Date.now() / 1000 - t < ACTIVITY_REFRESH_MS / 1000) stale = false;
+    }
+    if (stale) {
+      try {
+        const acts = {};
+        if (wantAct.sortie) acts.sortie = normalizeActivity("sortie", await fetchJSON("sortie"), nowSec);
+        if (wantAct.archonHunt) acts.archonHunt = normalizeActivity("archonHunt", await fetchJSON("archonHunt"), nowSec);
+        if (wantAct.archimedeaDeep || wantAct.archimedeaTemporal) {
+          const arch = await fetchJSON("archimedeas");
+          for (const item of arch) {
+            const k = String(item.typeKey || "").toUpperCase().replace(/ /g, "").includes("HEX") ? "archimedeaTemporal" : "archimedeaDeep";
+            if (wantAct[k]) acts[k] = normalizeActivity(k, item, nowSec);
+          }
+        }
+        acts.fetchedAt = new Date().toISOString();
+        results.activities = acts;
+      } catch (e) {
+        errors.push(`activities: ${e.message}`);
+      }
+    } else {
+      results.activities = old;  // 缓存未过期，直接沿用
+    }
+  }
+
   if (!config.cycles.length && !config.arbitration && !want.normal && !want.steelPath && !want.railjack) {
     errors.push("未选择任何扫描目标");
   }
@@ -950,6 +1146,9 @@ function renderSettings() {
   $("arbitration").checked = !!c.arbitration;
   document.querySelectorAll("#fissureTargets [data-cat]").forEach((cb) => {
     cb.checked = !!(c.fissures || {})[cb.dataset.cat];
+  });
+  document.querySelectorAll("#activityTargets [data-activity]").forEach((cb) => {
+    cb.checked = !!(c.activities || {})[cb.dataset.activity];
   });
 }
 
@@ -1034,6 +1233,47 @@ function renderFissures() {
       <td>${esc(m.node)}</td>
       <td>${fmtRemaining(remainingSec(m, res.fetchedAt), "即将结束…")}</td>
     </tr>`;
+  }).join("");
+}
+
+/* ---------------- 周期活动渲染 ---------------- */
+
+function fmtTerm(o) {
+  if (!o || !o.name) return "";
+  if (o.desc === "未确定") return `${esc(o.name)} <span class="muted">（说明：未确定）</span>`;
+  return `${esc(o.name)} <span class="muted">${esc(o.desc)}</span>`;
+}
+
+function renderActivities() {
+  const res = scanState.results || {};
+  const acts = res.activities || {};
+  const fetchedAt = res.fetchedAt;
+  $("activityFetchedAt").textContent = acts.fetchedAt ? `数据: ${fmtLocal(acts.fetchedAt)}（约 30 分钟刷新）` : "";
+  const wrap = $("activityCards");
+  wrap.innerHTML = ACTIVITY_TARGETS.map((t) => {
+    const a = acts[t[0]];
+    if (!a) return `<div class="activity-card"><div class="title">${esc(t[1])}</div><div class="sub">尚未获取</div></div>`;
+    if (!a.available) return `<div class="activity-card"><div class="title">${esc(t[1])}</div><div class="sub">不可用: ${esc(a.error || "")}</div></div>`;
+    let body = "";
+    if (a.boss) body += `<div class="sub">首领: ${fmtTerm({ name: a.bossCn || a.boss, desc: a.bossDesc })}${a.faction ? ` · ${esc(a.factionCn || a.faction)}` : ""}</div>`;
+    if (a.modeCn) body += `<div class="sub">模式: ${esc(a.modeCn)}</div>`;
+    if (a.missions && a.missions.length) {
+      body += `<ul>${a.missions.map((m) => {
+        let s = `<li>${esc(m.missionTypeCn)}`;
+        if (m.node) s += ` @ ${esc(m.node)}`;
+        if (m.faction) s += ` <span class="muted">(${esc(m.factionCn || m.faction)})</span>`;
+        if (m.modifier) s += ` <span class="mod">· ${fmtTerm({ name: m.modifierCn || m.modifier, desc: m.modifierDesc })}</span>`;
+        if (m.deviation) s += ` <span class="mod">· ${fmtTerm({ name: m.deviationCn || m.deviation, desc: m.deviationDesc })}</span>`;
+        if (m.risks && m.risks.length) s += ` <span class="muted">· ${m.risks.map((r) => fmtTerm(r)).join(" / ")}</span>`;
+        s += `</li>`;
+        return s;
+      }).join("")}</ul>`;
+    }
+    if (a.personalModifiers && a.personalModifiers.length) {
+      body += `<div class="cnt">个人修正: ${a.personalModifiers.map((m) => fmtTerm(m)).join(" / ")}</div>`;
+    }
+    body += `<div class="cnt">剩余: ${fmtRemaining(remainingSec(a, fetchedAt), "即将轮换…")}</div>`;
+    return `<div class="activity-card"><div class="title">${esc(t[1])}</div>${body}</div>`;
   }).join("");
 }
 
@@ -1267,6 +1507,7 @@ function render() {
   renderCycles();
   renderArbitration();
   renderFissures();
+  renderActivities();
   renderWatcher();
   renderMatches();
   handleAlerts();
@@ -1281,6 +1522,11 @@ function buildPlatformSelect() {
 function buildCycleCheckboxes() {
   $("cycleTargets").innerHTML = META.cycleTargets.map((t) =>
     `<label class="chk"><input type="checkbox" data-cycle="${t.key}"> ${esc(t.labelCn)} <span class="muted">(${esc(t.sub)})</span></label>`
+  ).join("");
+}
+function buildActivityCheckboxes() {
+  $("activityTargets").innerHTML = ACTIVITY_TARGETS.map((t) =>
+    `<label class="chk"><input type="checkbox" data-activity="${t[0]}"> ${esc(t[1])} <span class="muted">(${esc(t[2])})</span></label>`
   ).join("");
 }
 
@@ -1304,6 +1550,13 @@ function bindEvents() {
       document.querySelectorAll("#cycleTargets input[data-cycle]").forEach((c) => { if (c.checked) cycles.push(c.dataset.cycle); });
       config.cycles = cycles; persistConfig();
     }
+  });
+  document.querySelectorAll("#activityTargets [data-activity]").forEach((cb) => {
+    cb.onchange = () => {
+      const a = {};
+      document.querySelectorAll("#activityTargets [data-activity]").forEach((c) => { a[c.dataset.activity] = c.checked; });
+      config.activities = a; persistConfig(); toast("周期活动设置已保存");
+    };
   });
   $("btnScanStart").onclick = () => { scanState.running = true; toast("已开始周期性扫描"); };
   $("btnScanStop").onclick = () => { scanState.running = false; toast("已停止扫描"); };
@@ -1334,6 +1587,7 @@ function tick() {
 function init() {
   buildPlatformSelect();
   buildCycleCheckboxes();
+  buildActivityCheckboxes();
   bindEvents();
   scanState.running = true;
   doScan();
@@ -1344,7 +1598,7 @@ window.addEventListener("DOMContentLoaded", init);
 
 /* 暴露核心函数，便于构建/测试脚本做一致性校验 */
 window.__WFT = {
-  normalizeMission, normalizeArbitration, normalizeCycle, inferNextCycle,
+  normalizeMission, normalizeArbitration, normalizeCycle, inferNextCycle, normalizeActivity,
   groupMatches, buildSummary, sanitize, parsePlanet, referenceLevels,
   TIER_CN, DUVIRI_MOOD_CN, NEXT_STATE,
 };
